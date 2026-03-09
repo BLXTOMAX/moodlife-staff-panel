@@ -1,3 +1,4 @@
+import { supabase } from "@/lib/supabase";
 const ACCESS_STORAGE_KEY = "moodlife-user-access";
 const SESSION_STORAGE_KEY = "moodlife-session-email";
 const LEGACY_SESSION_STORAGE_KEY = "moodlife-session";
@@ -50,14 +51,23 @@ export function getAccessMap(): Record<string, string[]> {
   }
 }
 
-export function hasPermission(path: string): boolean {
+export async function hasPermission(path: string): Promise<boolean> {
   const sessionEmail = getSessionEmail();
 
   if (!sessionEmail) return false;
   if (isOwner(sessionEmail)) return true;
 
-  const accessMap = getAccessMap();
-  const permissions = accessMap[sessionEmail] ?? [];
+  const { data, error } = await supabase
+    .from("user_permissions")
+    .select("permission")
+    .eq("email", sessionEmail);
+
+  if (error) {
+    console.error("Erreur récupération permissions :", error);
+    return false;
+  }
+
+  const permissions = (data || []).map((p: any) => p.permission);
 
   return permissions.includes(path);
 }

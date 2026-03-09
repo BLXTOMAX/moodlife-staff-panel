@@ -15,6 +15,7 @@ export default function ProtectedPage({
   const [allowed, setAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
+  const checkAccess = async () => {
     const email = getSessionEmail();
 
     if (!email) {
@@ -22,13 +23,16 @@ export default function ProtectedPage({
       return;
     }
 
-    if (isOwner(email) || hasPermission(permission)) {
+    if (isOwner(email) || (await hasPermission(permission))) {
       setAllowed(true);
       return;
     }
 
     router.replace("/dashboard");
-  }, [permission, router]);
+  };
+
+  checkAccess();
+}, [permission, router]);
 
   if (allowed === null) {
     return (
