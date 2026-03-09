@@ -3,12 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-type User = {
-  email: string;
-  password: string;
-};
-
-const USERS_STORAGE_KEY = "moodlife-users";
 const SESSION_STORAGE_KEY = "moodlife-session-email";
 
 export default function LoginPage() {
@@ -16,8 +10,9 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -27,35 +22,35 @@ export default function LoginPage() {
       return;
     }
 
-    const savedUsers = localStorage.getItem(USERS_STORAGE_KEY);
+    try {
+      setLoading(true);
 
-    let users: User[] = [];
-
-    if (savedUsers) {
-      try {
-        users = JSON.parse(savedUsers);
-      } catch (error) {
-        console.error("Erreur lecture utilisateurs :", error);
-        users = [];
-      }
-    }
-
-    const existingUser = users.find(
-      (u) => u.email.trim().toLowerCase() === normalizedEmail
-    );
-
-    if (!existingUser) {
-      users.push({
-        email: normalizedEmail,
-        password,
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password,
+        }),
       });
 
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        alert(data?.message || "Erreur lors de la connexion.");
+        return;
+      }
+
+      localStorage.setItem(SESSION_STORAGE_KEY, normalizedEmail);
+      router.push("/dashboard/info");
+    } catch (error) {
+      console.error("Erreur connexion :", error);
+      alert("Une erreur est survenue.");
+    } finally {
+      setLoading(false);
     }
-
-    localStorage.setItem(SESSION_STORAGE_KEY, normalizedEmail);
-
-    router.push("/dashboard/info");
   }
 
   return (
@@ -81,9 +76,10 @@ export default function LoginPage() {
 
         <button
           type="submit"
-          className="rounded-xl bg-yellow-400 p-3 font-bold text-black"
+          disabled={loading}
+          className="rounded-xl bg-yellow-400 p-3 font-bold text-black disabled:opacity-60"
         >
-          Se connecter
+          {loading ? "Connexion..." : "Se connecter"}
         </button>
       </form>
     </div>
