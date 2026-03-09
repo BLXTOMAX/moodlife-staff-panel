@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Mail, Shield, Search, CheckCircle2 } from "lucide-react";
 import ProtectedPage from "@/components/protected-page";
+import { supabase } from "@/lib/supabase";
 
 type User = {
   email: string;
@@ -64,28 +65,23 @@ export default function MailAccesPage() {
   const [loaded, setLoaded] = useState(false);
 
   async function loadData() {
-    try {
-      const [usersRes, accessRes] = await Promise.all([
-        fetch("/api/users", { cache: "no-store" }),
-        fetch("/api/access", { cache: "no-store" }),
-      ]);
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("*");
 
-      const usersData = await usersRes.json();
-      const accessData = await accessRes.json();
-
-      if (usersData?.success) {
-        setUsers(usersData.users ?? []);
-      }
-
-      if (accessData?.success) {
-        setAccessMap(accessData.accessMap ?? {});
-      }
-    } catch (error) {
-      console.error("Erreur chargement Mail accès :", error);
-    } finally {
-      setLoaded(true);
+    if (error) {
+      console.error("Erreur récupération users :", error);
+      return;
     }
+
+    setUsers(data || []);
+  } catch (error) {
+    console.error("Erreur chargement Mail accès :", error);
+  } finally {
+    setLoaded(true);
   }
+}
 
   useEffect(() => {
     loadData();
