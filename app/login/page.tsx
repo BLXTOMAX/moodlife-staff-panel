@@ -16,17 +16,26 @@ export default function LoginPage() {
       return;
     }
 
-    const { error } = await supabase
+    // vérifier si l'utilisateur existe déjà
+    const { data: existingUser } = await supabase
       .from("users")
-      .insert([
-        {
-          email,
-          password,
-        },
-      ]);
+      .select("*")
+      .eq("email", email)
+      .single();
 
-    if (error) {
-      console.error(error);
+    if (!existingUser) {
+      const { error } = await supabase
+        .from("users")
+        .insert([
+          {
+            email,
+            password,
+          },
+        ]);
+
+      if (error) {
+        console.error(error);
+      }
     }
 
     localStorage.setItem("moodlife-email", email);
