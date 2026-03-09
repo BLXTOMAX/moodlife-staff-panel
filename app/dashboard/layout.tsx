@@ -27,10 +27,10 @@ export default function DashboardLayout({
         return;
       }
 
-      const allowed = await hasPermission(pathname);
+      const canAccess = await hasPermission(pathname);
 
-      if (!allowed) {
-        router.replace("/dashboard/info");
+      if (!canAccess) {
+        router.replace("/login");
         return;
       }
 
@@ -44,5 +44,15 @@ export default function DashboardLayout({
     return <div className="p-6 text-white">Chargement...</div>;
   }
 
-  return <>{children}</>;
+  if (!allowed) return null;
+
+  return (
+    <div className="min-h-screen flex">
+      {/* TA SIDEBAR ICI */}
+      {/* TON FOND / WRAPPER ICI */}
+      <main className="flex-1">
+        {children}
+      </main>
+    </div>
+  );
 }
