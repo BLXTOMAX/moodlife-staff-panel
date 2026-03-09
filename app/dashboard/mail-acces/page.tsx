@@ -27,6 +27,7 @@ const availablePermissions = [
   { key: "/dashboard/deban-anticheat", label: "Deban anticheat" },
   { key: "/dashboard/responsable-event", label: "Responsable event" },
   { key: "absence-validation", label: "Validation des absences" },
+  { key: "/dashboard/mail-acces", label: "Mail accès" },
 ] as const;
 
 function normalize(text: string) {
@@ -66,16 +67,37 @@ export default function MailAccesPage() {
 
   async function loadData() {
   try {
-    const { data, error } = await supabase
-      .from("users")
-      .select("*");
+    const [
+      { data: usersData, error: usersError },
+      { data: permissionsData, error: permissionsError },
+    ] = await Promise.all([
+      supabase.from("users").select("*"),
+      supabase.from("user_permissions").select("*"),
+    ]);
 
-    if (error) {
-      console.error("Erreur récupération users :", error);
+    if (usersError) {
+      console.error("Erreur récupération users :", usersError);
       return;
     }
 
-    setUsers(data || []);
+    if (permissionsError) {
+      console.error("Erreur récupération permissions :", permissionsError);
+      return;
+    }
+
+    setUsers(usersData || []);
+
+    const nextAccessMap: UserAccessMap = {};
+
+    (permissionsData || []).forEach((item: { email: string; permission: string }) => {
+      if (!nextAccessMap[item.email]) {
+        nextAccessMap[item.email] = [];
+      }
+
+      nextAccessMap[item.email].push(item.permission);
+    });
+
+    setAccessMap(nextAccessMap);
   } catch (error) {
     console.error("Erreur chargement Mail accès :", error);
   } finally {
@@ -88,20 +110,39 @@ export default function MailAccesPage() {
   }, []);
 
   async function saveAccess(nextMap: UserAccessMap) {
-    setAccessMap(nextMap);
+  setAccessMap(nextMap);
 
-    try {
-      await fetch("/api/access", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ accessMap: nextMap }),
-      });
-    } catch (error) {
-      console.error("Erreur sauvegarde Mail accès :", error);
+  try {
+    const { error: deleteError } = await supabase
+      .from("user_permissions")
+      .delete()
+      .neq("email", "");
+
+    if (deleteError) {
+      console.error("Erreur suppression permissions :", deleteError);
+      return;
     }
+
+    const rows = Object.entries(nextMap).flatMap(([email, permissions]) =>
+      permissions.map((permission) => ({
+        email,
+        permission,
+      }))
+    );
+
+    if (rows.length > 0) {
+      const { error: insertError } = await supabase
+        .from("user_permissions")
+        .insert(rows);
+
+      if (insertError) {
+        console.error("Erreur insertion permissions :", insertError);
+      }
+    }
+  } catch (error) {
+    console.error("Erreur sauvegarde Mail accès :", error);
   }
+}
 
   const filteredUsers = useMemo(() => {
     if (!search.trim()) return users;
