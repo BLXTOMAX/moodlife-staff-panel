@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-const ACCESS_STORAGE_KEY = "moodlife-user-access";
+
 const SESSION_STORAGE_KEY = "moodlife-session-email";
 const LEGACY_SESSION_STORAGE_KEY = "moodlife-session";
 
@@ -40,17 +40,6 @@ export function isOwner(email?: string | null): boolean {
   return OWNER_EMAILS.includes(email.trim().toLowerCase());
 }
 
-export function getAccessMap(): Record<string, string[]> {
-  if (typeof window === "undefined") return {};
-
-  try {
-    const raw = localStorage.getItem(ACCESS_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
 export async function hasPermission(path: string): Promise<boolean> {
   const sessionEmail = getSessionEmail();
 
@@ -67,7 +56,6 @@ export async function hasPermission(path: string): Promise<boolean> {
     return false;
   }
 
-  const permissions = (data || []).map((p: any) => p.permission);
-
+  const permissions = (data || []).map((item) => item.permission);
   return permissions.includes(path);
 }
