@@ -1,27 +1,48 @@
-import type { ReactNode } from "react";
-import AnimatedBackground from "./animated-background";
-import Sidebar from "@/components/sidebar";
-import HelpBot from "@/components/help-bot";
+"use client";
+
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { hasPermission, getSessionEmail, isOwner } from "@/lib/access";
 
 export default function DashboardLayout({
   children,
 }: {
-  children: ReactNode;
+  children: React.ReactNode;
 }) {
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-[#05070b] text-white">
-      <AnimatedBackground />
+  const pathname = usePathname();
+  const router = useRouter();
+  const [allowed, setAllowed] = useState<boolean | null>(null);
 
-      <div className="relative z-10 flex min-h-screen">
-        <Sidebar />
+  useEffect(() => {
+    const checkAccess = async () => {
+      const email = getSessionEmail();
 
-        <main className="flex-1 p-6 md:p-8">
-          <div className="mx-auto max-w-[1600px]">{children}</div>
-        </main>
-      </div>
+      if (!email) {
+        router.replace("/login");
+        return;
+      }
 
-      <HelpBot />
-    </div>
-  );
+      if (isOwner(email)) {
+        setAllowed(true);
+        return;
+      }
+
+      const allowed = await hasPermission(pathname);
+
+      if (!allowed) {
+        router.replace("/dashboard/info");
+        return;
+      }
+
+      setAllowed(true);
+    };
+
+    checkAccess();
+  }, [pathname, router]);
+
+  if (allowed === null) {
+    return <div className="p-6 text-white">Chargement...</div>;
+  }
+
+  return <>{children}</>;
 }
-

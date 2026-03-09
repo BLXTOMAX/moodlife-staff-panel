@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import ProtectedPage from "@/components/protected-page";
 
 type Tab = "heures" | "remontees" | "bl";
 
