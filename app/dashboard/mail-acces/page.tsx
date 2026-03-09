@@ -109,36 +109,37 @@ export default function MailAccesPage() {
     loadData();
   }, []);
 
-  async function saveAccess(nextMap: UserAccessMap) {
+  async function saveAccess(nextMap: UserAccessMap, email: string) {
   setAccessMap(nextMap);
 
   try {
     const { error: deleteError } = await supabase
       .from("user_permissions")
       .delete()
-      .neq("email", "");
+      .eq("email", email);
 
     if (deleteError) {
       console.error("Erreur suppression permissions :", deleteError);
       return;
     }
 
-    const rows = Object.entries(nextMap).flatMap(([email, permissions]) =>
-      permissions.map((permission) => ({
-        email,
-        permission,
-      }))
-    );
+    const permissions = nextMap[email] || [];
 
-    if (rows.length > 0) {
-      const { error: insertError } = await supabase
-        .from("user_permissions")
-        .insert(rows);
+    if (permissions.length === 0) return;
 
-      if (insertError) {
-        console.error("Erreur insertion permissions :", insertError);
-      }
+    const rows = permissions.map((permission) => ({
+      email,
+      permission,
+    }));
+
+    const { error: insertError } = await supabase
+      .from("user_permissions")
+      .insert(rows);
+
+    if (insertError) {
+      console.error("Erreur insertion permissions :", insertError);
     }
+
   } catch (error) {
     console.error("Erreur sauvegarde Mail accès :", error);
   }
@@ -167,7 +168,7 @@ export default function MailAccesPage() {
         : [...current, permission],
     };
 
-    saveAccess(nextMap);
+    saveAccess(nextMap, email);
   }
 
   function grantAll(email: string) {
@@ -176,7 +177,7 @@ export default function MailAccesPage() {
       [email]: availablePermissions.map((item) => item.key),
     };
 
-    saveAccess(nextMap);
+    saveAccess(nextMap, email);
   }
 
   function clearAll(email: string) {
@@ -185,7 +186,7 @@ export default function MailAccesPage() {
       [email]: [],
     };
 
-    saveAccess(nextMap);
+    saveAccess(nextMap, email);
   }
 
   return (
