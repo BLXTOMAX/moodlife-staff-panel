@@ -120,7 +120,7 @@ export default function DashboardPage() {
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {categories.map((item) => {
           const allowed =
-            owner || permissions.includes(item.href) || loadingPermissions;
+  owner || permissions.includes(item.href);
 
           return (
             <div
@@ -159,22 +159,30 @@ export default function DashboardPage() {
               </p>
 
               <div className="mt-6">
-                {allowed ? (
-                  <Link
-                    href={item.href}
-                    className="inline-flex rounded-full bg-yellow-400 px-5 py-2.5 text-sm font-bold text-black shadow-[0_0_18px_rgba(255,215,0,0.18)] transition duration-300 hover:scale-[1.03] hover:bg-yellow-300 hover:shadow-[0_0_24px_rgba(255,215,0,0.26)]"
-                  >
-                    Ouvrir la catégorie
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex cursor-not-allowed rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-bold text-white/45"
-                  >
-                    Accès non autorisé
-                  </button>
-                )}
+                {loadingPermissions ? (
+  <button
+    type="button"
+    disabled
+    className="inline-flex cursor-wait rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-bold text-white/45"
+  >
+    Chargement...
+  </button>
+) : allowed ? (
+  <Link
+    href={item.href}
+    className="inline-flex rounded-full bg-yellow-400 px-5 py-2.5 text-sm font-bold text-black shadow-[0_0_18px_rgba(255,215,0,0.18)] transition duration-300 hover:scale-[1.03] hover:bg-yellow-300 hover:shadow-[0_0_24px_rgba(255,215,0,0.26)]"
+  >
+    Ouvrir la catégorie
+  </Link>
+) : (
+  <button
+    type="button"
+    disabled
+    className="inline-flex cursor-not-allowed rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-bold text-white/45"
+  >
+    Accès non autorisé
+  </button>
+)}
               </div>
             </div>
           );
