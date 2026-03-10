@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: existing, error: selectError } = await supabase
+    const { data: existingUser, error: selectError } = await supabase
       .from("users")
       .select("id, email")
       .eq("email", email)
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!existing) {
+    if (!existingUser) {
       const { error: insertError } = await supabase
         .from("users")
         .insert([{ email, password }]);
@@ -79,11 +79,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // Vérifie toujours les permissions par défaut, même si l'utilisateur existe déjà
-    const { data: currentPermissions, error: permissionsFetchError } = await supabase
-      .from("user_permissions")
-      .select("permission")
-      .eq("email", email);
+    const { data: currentPermissions, error: permissionsFetchError } =
+      await supabase
+        .from("user_permissions")
+        .select("permission")
+        .eq("email", email);
 
     if (permissionsFetchError) {
       console.error(
@@ -120,7 +120,10 @@ export async function POST(request: Request) {
           permissionsInsertError
         );
         return NextResponse.json(
-          { success: false, message: "Utilisateur créé mais permissions incomplètes." },
+          {
+            success: false,
+            message: "Utilisateur créé mais permissions incomplètes.",
+          },
           { status: 500 }
         );
       }
@@ -142,7 +145,10 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ success: true, users: users || [] });
+    return NextResponse.json({
+      success: true,
+      users: users || [],
+    });
   } catch (error) {
     console.error("POST /api/users error:", error);
     return NextResponse.json(
@@ -155,95 +161,37 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const body = await request.json();
-    const id = String(body?.id || "").trim();
     const email = String(body?.email || "").trim().toLowerCase();
 
-    if (!id && !email) {
+    if (!email) {
       return NextResponse.json(
-        { success: false, message: "Identifiant manquant." },
+        { success: false, message: "Email manquant." },
         { status: 400 }
       );
     }
 
-    if (id) {
-      const { data: userRow, error: userFetchError } = await supabase
-        .from("users")
-        .select("email")
-        .eq("id", id)
-        .maybeSingle();
-
-      if (userFetchError) {
-        console.error("DELETE /api/users fetch by id error:", userFetchError);
-        return NextResponse.json(
-          { success: false, message: "Impossible de récupérer l'utilisateur." },
-          { status: 500 }
-        );
-      }
-
-      const userEmail = String(userRow?.email || "").trim().toLowerCase();
-
-      const { error: permissionsByUserIdError } = await supabase
-        .from("user_permissions")
-        .delete()
-        .eq("user_id", id);
-
-      if (permissionsByUserIdError) {
-        console.error(
-          "DELETE /api/users permissions by id error:",
-          permissionsByUserIdError
-        );
-      }
-
-      if (userEmail) {
-        const { error: permissionsByEmailError } = await supabase
-          .from("user_permissions")
-          .delete()
-          .eq("email", userEmail);
-
-        if (permissionsByEmailError) {
-          console.error(
-            "DELETE /api/users permissions by email error:",
-            permissionsByEmailError
-          );
-        }
-      }
-
-      const { error: userError } = await supabase
-        .from("users")
-        .delete()
-        .eq("id", id);
-
-      if (userError) {
-        console.error("DELETE /api/users delete by id error:", userError);
-        return NextResponse.json(
-          { success: false, message: userError.message },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({ success: true });
-    }
-
-    const targetEmail = email;
-
     const { error: permissionsError } = await supabase
       .from("user_permissions")
       .delete()
-      .eq("email", targetEmail);
+      .eq("email", email);
 
     if (permissionsError) {
       console.error("DELETE /api/users permissions error:", permissionsError);
+      return NextResponse.json(
+        { success: false, message: "Impossible de supprimer les permissions." },
+        { status: 500 }
+      );
     }
 
     const { error: userError } = await supabase
       .from("users")
       .delete()
-      .eq("email", targetEmail);
+      .eq("email", email);
 
     if (userError) {
-      console.error("DELETE /api/users delete by email error:", userError);
+      console.error("DELETE /api/users user error:", userError);
       return NextResponse.json(
-        { success: false, message: userError.message },
+        { success: false, message: "Impossible de supprimer l'utilisateur." },
         { status: 500 }
       );
     }
