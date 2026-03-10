@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,37 +21,29 @@ export default function LoginPage() {
 
       const normalizedEmail = email.trim().toLowerCase();
 
-      const { data: existingUser, error: selectError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("email", normalizedEmail)
-        .maybeSingle();
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password,
+        }),
+      });
 
-      if (selectError) {
-        console.error("Erreur lecture utilisateur :", selectError);
-        alert("Impossible de vérifier l'utilisateur.");
+      const result = await response.json();
+
+      if (!response.ok || !result?.success) {
+        alert(result?.message || "Identifiants invalides.");
         return;
       }
 
-      if (!existingUser) {
-        const { error: insertError } = await supabase.from("users").insert([
-          {
-            email: normalizedEmail,
-            password,
-          },
-        ]);
-
-        if (insertError) {
-          console.error("Erreur insertion utilisateur :", insertError);
-          alert("Impossible d'enregistrer l'utilisateur.");
-          return;
-        }
-      }
-
       localStorage.setItem("moodlife-session-email", normalizedEmail);
-localStorage.removeItem("moodlife-email");
-document.cookie = "staff_session=active; path=/";
-router.push("/dashboard/info");
+      localStorage.removeItem("moodlife-email");
+
+      router.push("/dashboard/info");
+      router.refresh();
     } catch (error) {
       console.error("Erreur login :", error);
       alert("Une erreur est survenue.");
@@ -93,6 +84,11 @@ router.push("/dashboard/info");
             placeholder="Mot de passe"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !loading) {
+                handleLogin();
+              }
+            }}
             className="w-full rounded-2xl border border-yellow-400/15 bg-black/50 px-4 py-4 text-white outline-none transition placeholder:text-white/35 focus:border-yellow-400/35"
           />
 
