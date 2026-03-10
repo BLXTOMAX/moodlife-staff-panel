@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Shield, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getSessionEmail } from "@/lib/access";
 
 type LicenseEntry = {
   id: number;
@@ -10,6 +11,7 @@ type LicenseEntry = {
   boutique_id: string;
   discord_name: string;
   created_at: string;
+  created_by: string | null;
 };
 
 function normalize(text: string) {
@@ -56,6 +58,8 @@ export default function LicensePage() {
   const [entries, setEntries] = useState<LicenseEntry[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [message, setMessage] = useState("");
+  const [sessionEmail, setSessionEmail] = useState("");
+  const [canManageAll, setCanManageAll] = useState(false);
 
   async function loadEntries() {
     try {
@@ -83,6 +87,32 @@ export default function LicensePage() {
     loadEntries();
   }, []);
 
+  useEffect(() => {
+    const email = getSessionEmail() || "";
+    setSessionEmail(email);
+  }, []);
+
+  useEffect(() => {
+    async function loadManagePermission() {
+      if (!sessionEmail) return;
+
+      const { data, error } = await supabase
+        .from("user_permissions")
+        .select("permission")
+        .eq("email", sessionEmail);
+
+      if (error) {
+        console.error("Erreur permission mail-acces :", error);
+        return;
+      }
+
+      const permissions = (data || []).map((item) => item.permission);
+      setCanManageAll(permissions.includes("/dashboard/mail-acces"));
+    }
+
+    loadManagePermission();
+  }, [sessionEmail]);
+
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -105,6 +135,7 @@ export default function LicensePage() {
       license: form.license.trim(),
       boutique_id: form.boutiqueId.trim(),
       discord_name: form.discordName.trim(),
+      created_by: sessionEmail || null,
     };
 
     const { error } = await supabase.from("license_entries").insert([payload]);
@@ -125,11 +156,22 @@ export default function LicensePage() {
     await loadEntries();
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(entry: LicenseEntry) {
+    const canDelete =
+      canManageAll ||
+      (entry.created_by &&
+        sessionEmail &&
+        entry.created_by.toLowerCase() === sessionEmail.toLowerCase());
+
+    if (!canDelete) {
+      setMessage("Tu ne peux supprimer que tes propres licences.");
+      return;
+    }
+
     const { error } = await supabase
       .from("license_entries")
       .delete()
-      .eq("id", id);
+      .eq("id", entry.id);
 
     if (error) {
       console.error("Erreur suppression licence :", error);
@@ -319,60 +361,75 @@ export default function LicensePage() {
                 Aucune licence trouvée.
               </div>
             ) : (
-              filteredEntries.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)]"
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-                          Licence
-                        </p>
-                        <p className="mt-1 break-all text-lg font-bold text-white">
-                          {entry.license}
-                        </p>
-                      </div>
+              filteredEntries.map((entry) => {
+                const canDelete =
+                  canManageAll ||
+                  (entry.created_by &&
+                    sessionEmail &&
+                    entry.created_by.toLowerCase() ===
+                      sessionEmail.toLowerCase());
 
-                      <div className="grid gap-3 sm:grid-cols-2">
+                return (
+                  <div
+                    key={entry.id}
+                    className="rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)]"
+                  >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-3">
                         <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-white/45">
-                            ID boutique
+                          <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
+                            Licence
                           </p>
-                          <p className="mt-1 text-sm text-white/85">
-                            {entry.boutique_id}
+                          <p className="mt-1 break-all text-lg font-bold text-white">
+                            {entry.license}
                           </p>
                         </div>
 
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-white/45">
-                            Discord
-                          </p>
-                          <p className="mt-1 text-sm text-white/85">
-                            {entry.discord_name}
-                          </p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.2em] text-white/45">
+                              ID boutique
+                            </p>
+                            <p className="mt-1 text-sm text-white/85">
+                              {entry.boutique_id}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.2em] text-white/45">
+                              Discord
+                            </p>
+                            <p className="mt-1 text-sm text-white/85">
+                              {entry.discord_name}
+                            </p>
+                          </div>
                         </div>
+
+                        <p className="text-xs text-white/40">
+                          Ajouté par : {entry.created_by || "inconnu"}
+                        </p>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/65">
-                        {formatDate(entry.created_at)}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/65">
+                          {formatDate(entry.created_at)}
+                        </span>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(entry.id)}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15"
-                      >
-                        <Trash2 size={16} />
-                        Supprimer
-                      </button>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(entry)}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15"
+                          >
+                            <Trash2 size={16} />
+                            Supprimer
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

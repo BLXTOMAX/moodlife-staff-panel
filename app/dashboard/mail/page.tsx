@@ -10,11 +10,13 @@ import {
   Trash2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getSessionEmail } from "@/lib/access";
 
 type MailEntry = {
   id: number;
   email: string;
   created_at: string;
+  created_by: string | null;
 };
 
 const GOOGLE_FORM_URL =
@@ -60,6 +62,8 @@ export default function MailPage() {
   const [entries, setEntries] = useState<MailEntry[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [message, setMessage] = useState("");
+  const [sessionEmail, setSessionEmail] = useState("");
+  const [canManageAll, setCanManageAll] = useState(false);
 
   async function loadEntries() {
     try {
@@ -87,6 +91,32 @@ export default function MailPage() {
     loadEntries();
   }, []);
 
+  useEffect(() => {
+    const current = getSessionEmail() || "";
+    setSessionEmail(current);
+  }, []);
+
+  useEffect(() => {
+    async function loadManagePermission() {
+      if (!sessionEmail) return;
+
+      const { data, error } = await supabase
+        .from("user_permissions")
+        .select("permission")
+        .eq("email", sessionEmail);
+
+      if (error) {
+        console.error("Erreur permission mail-acces :", error);
+        return;
+      }
+
+      const permissions = (data || []).map((item) => item.permission);
+      setCanManageAll(permissions.includes("/dashboard/mail-acces"));
+    }
+
+    loadManagePermission();
+  }, [sessionEmail]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMessage("");
@@ -106,7 +136,7 @@ export default function MailPage() {
 
     const { error } = await supabase
       .from("suicide_rp_mails")
-      .insert([{ email: cleanEmail }]);
+      .insert([{ email: cleanEmail, created_by: sessionEmail || null }]);
 
     if (error) {
       console.error("Erreur ajout mail :", error);
@@ -124,11 +154,22 @@ export default function MailPage() {
     await loadEntries();
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(entry: MailEntry) {
+    const canDelete =
+      canManageAll ||
+      (entry.created_by &&
+        sessionEmail &&
+        entry.created_by.toLowerCase() === sessionEmail.toLowerCase());
+
+    if (!canDelete) {
+      setMessage("Tu ne peux supprimer que les mails que tu as ajoutés.");
+      return;
+    }
+
     const { error } = await supabase
       .from("suicide_rp_mails")
       .delete()
-      .eq("id", id);
+      .eq("id", entry.id);
 
     if (error) {
       console.error("Erreur suppression mail :", error);
@@ -303,38 +344,52 @@ export default function MailPage() {
                 Aucun mail enregistré.
               </div>
             ) : (
-              filteredEntries.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)]"
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/10 p-3 text-yellow-300">
-                        <Mail className="h-5 w-5" />
+              filteredEntries.map((entry) => {
+                const canDelete =
+                  canManageAll ||
+                  (entry.created_by &&
+                    sessionEmail &&
+                    entry.created_by.toLowerCase() ===
+                      sessionEmail.toLowerCase());
+
+                return (
+                  <div
+                    key={entry.id}
+                    className="rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)]"
+                  >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/10 p-3 text-yellow-300">
+                          <Mail className="h-5 w-5" />
+                        </div>
+
+                        <div>
+                          <p className="text-lg font-bold text-white">
+                            {entry.email}
+                          </p>
+                          <p className="mt-1 text-xs text-white/45">
+                            Ajouté le {formatDate(entry.created_at)}
+                          </p>
+                          <p className="mt-1 text-xs text-white/40">
+                            Ajouté par : {entry.created_by || "inconnu"}
+                          </p>
+                        </div>
                       </div>
 
-                      <div>
-                        <p className="text-lg font-bold text-white">
-                          {entry.email}
-                        </p>
-                        <p className="mt-1 text-xs text-white/45">
-                          Ajouté le {formatDate(entry.created_at)}
-                        </p>
-                      </div>
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(entry)}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15"
+                        >
+                          <Trash2 size={16} />
+                          Supprimer
+                        </button>
+                      )}
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(entry.id)}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15"
-                    >
-                      <Trash2 size={16} />
-                      Supprimer
-                    </button>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
