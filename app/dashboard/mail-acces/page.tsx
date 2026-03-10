@@ -14,7 +14,10 @@ type User = {
 
 type UserAccessMap = Record<string, string[]>;
 
-const ALWAYS_ALLOWED_PERMISSION = "/dashboard/info";
+const ALWAYS_ALLOWED_PERMISSIONS = [
+  "/dashboard",
+  "/dashboard/info",
+];
 
 const availablePermissions = [
   { key: "/dashboard/regles-staff", label: "Règles staff" },
@@ -171,7 +174,7 @@ export default function MailAccesPage() {
   const nextMap = {
     ...accessMap,
     [email]: Array.from(
-      new Set([ALWAYS_ALLOWED_PERMISSION, ...nextPermissions])
+      new Set([...ALWAYS_ALLOWED_PERMISSIONS, ...nextPermissions])
     ),
   };
 
@@ -183,7 +186,7 @@ export default function MailAccesPage() {
     ...accessMap,
     [email]: Array.from(
       new Set([
-        ALWAYS_ALLOWED_PERMISSION,
+        ...ALWAYS_ALLOWED_PERMISSIONS,
         ...availablePermissions.map((item) => item.key),
       ])
     ),
@@ -195,7 +198,7 @@ export default function MailAccesPage() {
   function clearAll(email: string) {
   const nextMap = {
     ...accessMap,
-    [email]: [ALWAYS_ALLOWED_PERMISSION],
+    [email]: [...ALWAYS_ALLOWED_PERMISSIONS],
   };
 
   saveAccess(nextMap, email);
