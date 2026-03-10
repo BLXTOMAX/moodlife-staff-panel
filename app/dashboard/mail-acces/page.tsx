@@ -14,10 +14,7 @@ type User = {
 
 type UserAccessMap = Record<string, string[]>;
 
-const ALWAYS_ALLOWED_PERMISSIONS = [
-  "/dashboard",
-  "/dashboard/info",
-];
+const ALWAYS_ALLOWED_PERMISSIONS = ["/dashboard", "/dashboard/info"];
 
 const availablePermissions = [
   { key: "/dashboard/regles-staff", label: "Règles staff" },
@@ -71,85 +68,129 @@ export default function MailAccesPage() {
   const [search, setSearch] = useState("");
   const [loaded, setLoaded] = useState(false);
 
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [creating, setCreating] = useState(false);
+
   async function loadData() {
-  try {
-    const [
-      { data: usersData, error: usersError },
-      { data: permissionsData, error: permissionsError },
-    ] = await Promise.all([
-      supabase.from("users").select("*"),
-      supabase.from("user_permissions").select("*"),
-    ]);
+    try {
+      const [
+        { data: usersData, error: usersError },
+        { data: permissionsData, error: permissionsError },
+      ] = await Promise.all([
+        supabase.from("users").select("*").order("created_at", { ascending: false }),
+        supabase.from("user_permissions").select("*"),
+      ]);
 
-    if (usersError) {
-      console.error("Erreur récupération users :", usersError);
-      return;
-    }
-
-    if (permissionsError) {
-      console.error("Erreur récupération permissions :", permissionsError);
-      return;
-    }
-
-    setUsers(usersData || []);
-
-    const nextAccessMap: UserAccessMap = {};
-
-    (permissionsData || []).forEach((item: { email: string; permission: string }) => {
-      if (!nextAccessMap[item.email]) {
-        nextAccessMap[item.email] = [];
+      if (usersError) {
+        console.error("Erreur récupération users :", usersError);
+        return;
       }
 
-      nextAccessMap[item.email].push(item.permission);
-    });
+      if (permissionsError) {
+        console.error("Erreur récupération permissions :", permissionsError);
+        return;
+      }
 
-    setAccessMap(nextAccessMap);
-  } catch (error) {
-    console.error("Erreur chargement Mail accès :", error);
-  } finally {
-    setLoaded(true);
+      setUsers((usersData || []) as User[]);
+
+      const nextAccessMap: UserAccessMap = {};
+
+      (permissionsData || []).forEach(
+        (item: { email: string; permission: string }) => {
+          if (!nextAccessMap[item.email]) {
+            nextAccessMap[item.email] = [];
+          }
+
+          nextAccessMap[item.email].push(item.permission);
+        }
+      );
+
+      setAccessMap(nextAccessMap);
+    } catch (error) {
+      console.error("Erreur chargement Mail accès :", error);
+    } finally {
+      setLoaded(true);
+    }
   }
-}
+
+  async function createUser() {
+    const email = newEmail.trim().toLowerCase();
+    const password = newPassword;
+
+    if (!email || !password) {
+      alert("Email et mot de passe requis.");
+      return;
+    }
+
+    try {
+      setCreating(true);
+
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert(data?.message || "Impossible de créer l'utilisateur.");
+        return;
+      }
+
+      setNewEmail("");
+      setNewPassword("");
+
+      await loadData();
+    } catch (error) {
+      console.error("Erreur création utilisateur :", error);
+      alert("Erreur serveur.");
+    } finally {
+      setCreating(false);
+    }
+  }
 
   useEffect(() => {
     loadData();
   }, []);
 
   async function saveAccess(nextMap: UserAccessMap, email: string) {
-  setAccessMap(nextMap);
+    setAccessMap(nextMap);
 
-  try {
-    const { error: deleteError } = await supabase
-      .from("user_permissions")
-      .delete()
-      .eq("email", email);
+    try {
+      const { error: deleteError } = await supabase
+        .from("user_permissions")
+        .delete()
+        .eq("email", email);
 
-    if (deleteError) {
-      console.error("Erreur suppression permissions :", deleteError);
-      return;
+      if (deleteError) {
+        console.error("Erreur suppression permissions :", deleteError);
+        return;
+      }
+
+      const permissions = nextMap[email] || [];
+
+      if (permissions.length === 0) return;
+
+      const rows = permissions.map((permission) => ({
+        email,
+        permission,
+      }));
+
+      const { error: insertError } = await supabase
+        .from("user_permissions")
+        .insert(rows);
+
+      if (insertError) {
+        console.error("Erreur insertion permissions :", insertError);
+      }
+    } catch (error) {
+      console.error("Erreur sauvegarde Mail accès :", error);
     }
-
-    const permissions = nextMap[email] || [];
-
-    if (permissions.length === 0) return;
-
-    const rows = permissions.map((permission) => ({
-      email,
-      permission,
-    }));
-
-    const { error: insertError } = await supabase
-      .from("user_permissions")
-      .insert(rows);
-
-    if (insertError) {
-      console.error("Erreur insertion permissions :", insertError);
-    }
-
-  } catch (error) {
-    console.error("Erreur sauvegarde Mail accès :", error);
   }
-}
 
   const filteredUsers = useMemo(() => {
     if (!search.trim()) return users;
@@ -164,45 +205,45 @@ export default function MailAccesPage() {
   }, [accessMap]);
 
   function togglePermission(email: string, permission: string) {
-  const current = accessMap[email] ?? [];
-  const exists = current.includes(permission);
+    const current = accessMap[email] ?? [];
+    const exists = current.includes(permission);
 
-  const nextPermissions = exists
-    ? current.filter((item) => item !== permission)
-    : [...current, permission];
+    const nextPermissions = exists
+      ? current.filter((item) => item !== permission)
+      : [...current, permission];
 
-  const nextMap = {
-    ...accessMap,
-    [email]: Array.from(
-      new Set([...ALWAYS_ALLOWED_PERMISSIONS, ...nextPermissions])
-    ),
-  };
+    const nextMap = {
+      ...accessMap,
+      [email]: Array.from(
+        new Set([...ALWAYS_ALLOWED_PERMISSIONS, ...nextPermissions])
+      ),
+    };
 
-  saveAccess(nextMap, email);
-}
+    saveAccess(nextMap, email);
+  }
 
   function grantAll(email: string) {
-  const nextMap = {
-    ...accessMap,
-    [email]: Array.from(
-      new Set([
-        ...ALWAYS_ALLOWED_PERMISSIONS,
-        ...availablePermissions.map((item) => item.key),
-      ])
-    ),
-  };
+    const nextMap = {
+      ...accessMap,
+      [email]: Array.from(
+        new Set([
+          ...ALWAYS_ALLOWED_PERMISSIONS,
+          ...availablePermissions.map((item) => item.key),
+        ])
+      ),
+    };
 
-  saveAccess(nextMap, email);
-}
+    saveAccess(nextMap, email);
+  }
 
   function clearAll(email: string) {
-  const nextMap = {
-    ...accessMap,
-    [email]: [...ALWAYS_ALLOWED_PERMISSIONS],
-  };
+    const nextMap = {
+      ...accessMap,
+      [email]: [...ALWAYS_ALLOWED_PERMISSIONS],
+    };
 
-  saveAccess(nextMap, email);
-}
+    saveAccess(nextMap, email);
+  }
 
   return (
     <ProtectedPage permission="/dashboard/mail-acces">
@@ -229,6 +270,39 @@ export default function MailAccesPage() {
             </p>
           </div>
         </section>
+
+        <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
+          <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
+            Ajouter un utilisateur
+          </p>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <input
+              type="email"
+              placeholder="Adresse mail"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              className="rounded-xl border border-yellow-400/15 bg-black/40 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-yellow-400/35"
+            />
+
+            <input
+              type="password"
+              placeholder="Mot de passe"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="rounded-xl border border-yellow-400/15 bg-black/40 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-yellow-400/35"
+            />
+
+            <button
+              type="button"
+              onClick={createUser}
+              disabled={creating}
+              className="rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-3 py-2 text-sm font-semibold text-yellow-300 transition hover:bg-yellow-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {creating ? "Création..." : "Créer"}
+            </button>
+          </div>
+        </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
           <StatCard
@@ -324,48 +398,47 @@ export default function MailAccesPage() {
                         </button>
 
                         <button
-  type="button"
-  onClick={() => clearAll(user.email)}
-  className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-500/15"
->
-  Tout retirer
-</button>
+                          type="button"
+                          onClick={() => clearAll(user.email)}
+                          className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-500/15"
+                        >
+                          Tout retirer
+                        </button>
 
-<button
-  type="button"
-  onClick={async () => {
-    const ok = window.confirm(`Supprimer ${user.email} ?`);
-    if (!ok) return;
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const ok = window.confirm(`Supprimer ${user.email} ?`);
+                            if (!ok) return;
 
-    try {
-      const res = await fetch("/api/users", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: user.email,
-        }),
-      });
+                            try {
+                              const res = await fetch("/api/users", {
+                                method: "DELETE",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                  email: user.email,
+                                }),
+                              });
 
-      const data = await res.json();
+                              const data = await res.json();
 
-      if (!res.ok || !data.success) {
-        alert(data?.message || "Erreur suppression.");
-        return;
-      }
+                              if (!res.ok || !data.success) {
+                                alert(data?.message || "Erreur suppression.");
+                                return;
+                              }
 
-      loadData();
-
-    } catch (error) {
-      console.error("Erreur suppression :", error);
-      alert("Erreur serveur.");
-    }
-  }}
-  className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-500/15"
->
-  Supprimer
-</button>
+                              await loadData();
+                            } catch (error) {
+                              console.error("Erreur suppression :", error);
+                              alert("Erreur serveur.");
+                            }
+                          }}
+                          className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-500/15"
+                        >
+                          Supprimer
+                        </button>
                       </div>
                     </div>
 
