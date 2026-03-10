@@ -1,18 +1,14 @@
-import Sidebar from "@/components/sidebar";
-import Topbar from "@/components/topbar";
+import "./globals.css";
+import type { ReactNode } from "react";
 
-export default function DashboardLayout({
+export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-black text-white">
-      <Sidebar />
-      <div className="ml-[...taille-sidebar...]">
-        <Topbar />
-        <main>{children}</main>
-      </div>
-    </div>
+    <html lang="fr">
+      <body>{children}</body>
+    </html>
   );
 }
