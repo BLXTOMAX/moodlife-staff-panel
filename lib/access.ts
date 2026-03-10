@@ -8,31 +8,36 @@ const OWNER_EMAILS = ["paristom356@gmail.com"];
 export function getSessionEmail(): string | null {
   if (typeof window === "undefined") return null;
 
-  const directSession = localStorage.getItem(SESSION_STORAGE_KEY);
-  if (directSession) {
-    return directSession.trim().toLowerCase();
-  }
-
-  const legacySession = localStorage.getItem(LEGACY_SESSION_STORAGE_KEY);
-  if (!legacySession) return null;
-
   try {
-    const parsed = JSON.parse(legacySession);
-
-    if (typeof parsed === "string") {
-      return parsed.trim().toLowerCase();
+    const directSession = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (directSession && directSession.trim()) {
+      return directSession.trim().toLowerCase();
     }
 
-    if (parsed?.email && typeof parsed.email === "string") {
-      return parsed.email.trim().toLowerCase();
+    const legacySession = localStorage.getItem(LEGACY_SESSION_STORAGE_KEY);
+    if (!legacySession) return null;
+
+    try {
+      const parsed = JSON.parse(legacySession);
+
+      if (typeof parsed === "string" && parsed.trim()) {
+        return parsed.trim().toLowerCase();
+      }
+
+      if (parsed?.email && typeof parsed.email === "string" && parsed.email.trim()) {
+        return parsed.email.trim().toLowerCase();
+      }
+    } catch {
+      if (typeof legacySession === "string" && legacySession.trim()) {
+        return legacySession.trim().toLowerCase();
+      }
     }
-  } catch {
-    if (typeof legacySession === "string") {
-      return legacySession.trim().toLowerCase();
-    }
+
+    return null;
+  } catch (error) {
+    console.error("Erreur lecture session locale :", error);
+    return null;
   }
-
-  return null;
 }
 
 export function isOwner(email?: string | null): boolean {
@@ -43,19 +48,26 @@ export function isOwner(email?: string | null): boolean {
 export async function hasPermission(path: string): Promise<boolean> {
   const sessionEmail = getSessionEmail();
 
-  if (!sessionEmail) return false;
+  if (!sessionEmail) {
+    console.warn("Aucun email de session trouvé dans le navigateur.");
+    return false;
+  }
+
   if (isOwner(sessionEmail)) return true;
 
   const { data, error } = await supabase
     .from("user_permissions")
     .select("permission")
-    .eq("email", sessionEmail);
+    .eq("email", sessionEmail.trim().toLowerCase());
 
   if (error) {
     console.error("Erreur récupération permissions :", error);
     return false;
   }
 
-  const permissions = (data || []).map((item) => item.permission);
+  const permissions = (data || [])
+    .map((item) => item.permission)
+    .filter(Boolean);
+
   return permissions.includes(path);
 }
