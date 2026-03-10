@@ -57,86 +57,124 @@ const categories = [
 ];
 
 export default function DashboardPage() {
-  const sessionEmail = getSessionEmail();
-  const owner = isOwner(sessionEmail);
+  const [sessionEmail, setSessionEmail] = useState("");
+  const [owner, setOwner] = useState(false);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loadingPermissions, setLoadingPermissions] = useState(true);
 
+  useEffect(() => {
+    const email = getSessionEmail() || "";
+    setSessionEmail(email);
+    setOwner(isOwner(email));
+  }, []);
+
+  useEffect(() => {
+    async function loadPermissions() {
+      try {
+        if (!sessionEmail) {
+          setPermissions(ALWAYS_ALLOWED_PERMISSIONS);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("user_permissions")
+          .select("permission")
+          .eq("email", sessionEmail);
+
+        if (error) {
+          console.error("Erreur chargement permissions :", error);
+          setPermissions(ALWAYS_ALLOWED_PERMISSIONS);
+          return;
+        }
+
+        const dbPermissions = (data || []).map((p) => p.permission);
+
+        setPermissions([
+          ...new Set([...ALWAYS_ALLOWED_PERMISSIONS, ...dbPermissions]),
+        ]);
+      } catch (err) {
+        console.error("Erreur dashboard permissions :", err);
+        setPermissions(ALWAYS_ALLOWED_PERMISSIONS);
+      } finally {
+        setLoadingPermissions(false);
+      }
+    }
+
+    loadPermissions();
+  }, [sessionEmail]);
+
+  if (loadingPermissions) {
+    return <div className="p-6 text-white/70">Chargement du dashboard...</div>;
+  }
+
   return (
     <section className="space-y-8">
-      <div className="rounded-[32px] border border-yellow-400/12 bg-[#080a0e]/88 p-8 shadow-[0_0_35px_rgba(255,215,0,0.05)] backdrop-blur-xl">
-        <p className="text-xs uppercase tracking-[0.32em] text-yellow-400">
-          Dashboard staff
+      <div className="rounded-[32px] border border-yellow-400/15 bg-gradient-to-r from-black/80 via-black/70 to-black/40 p-8 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-yellow-300">
+          Dashboard
         </p>
 
-        <h1 className="mt-4 text-4xl font-black md:text-6xl">
-          Accès rapide au panel{" "}
-          <span className="text-yellow-400">MoodLife RP</span>
+        <h1 className="mt-4 text-4xl font-black tracking-tight text-white">
+          Accès rapide
         </h1>
 
-        <p className="mt-5 max-w-3xl leading-8 text-white/72">
-          Bienvenue dans l’espace interne du staff. Retrouvez ici toutes les
-          catégories importantes du panel pour accéder rapidement aux ressources,
-          règles, commandes et outils de gestion.
+        <p className="mt-4 max-w-3xl text-sm leading-7 text-white/75">
+          Retrouve ici toutes les catégories du panel staff selon les accès attribués à ton compte.
         </p>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {categories.map((item) => {
-          const allowed =
-  owner || permissions.includes(item.href) || loadingPermissions;
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {categories.map((category) => {
+          const allowed = owner || permissions.includes(category.href);
+
+          if (allowed) {
+            return (
+              <Link
+                key={category.href}
+                href={category.href}
+                className="group rounded-[28px] border border-yellow-400/15 bg-[#151515]/92 p-5 shadow-[0_8px_22px_rgba(0,0,0,0.28)] transition hover:border-yellow-400/30 hover:bg-[#1a1a1a]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-bold text-white">
+                      {category.title}
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-white/60">
+                      {category.description}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            );
+          }
 
           return (
             <div
-              key={item.title}
-              className={`rounded-[26px] border p-6 transition duration-300 ${
-                allowed
-                  ? "group border-yellow-400/15 bg-[#0d0f12]/88 shadow-[0_0_24px_rgba(255,215,0,0.04)] hover:-translate-y-1 hover:border-yellow-400/35 hover:bg-[#15171b] hover:shadow-[0_0_30px_rgba(255,215,0,0.10)]"
-                  : "border-white/10 bg-[#0d0f12]/70 opacity-70"
-              }`}
+              key={category.href}
+              className="rounded-[28px] border border-white/10 bg-[#0f0f0f]/80 p-5 opacity-80 shadow-[0_8px_22px_rgba(0,0,0,0.22)]"
             >
-              <p className="text-xs uppercase tracking-[0.28em] text-yellow-400/90">
-                Catégorie
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-white/85">
+                    {category.title}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-white/40">
+                    {category.description}
+                  </p>
+                </div>
 
-              <div className="mt-3 flex items-start justify-between gap-3">
-                <h2
-                  className={`text-2xl font-bold ${
-                    allowed ? "text-white group-hover:text-yellow-300" : "text-white/85"
-                  }`}
-                >
-                  {item.title}
-                </h2>
-
-                {!allowed && (
-                  <div className="inline-flex shrink-0 items-center gap-1 rounded-full border border-red-400/15 bg-red-500/10 px-3 py-1 text-xs text-red-300">
-                    <Lock className="h-3.5 w-3.5" />
-                    Accès restreint
-                  </div>
-                )}
+                <div className="rounded-full border border-red-400/20 bg-red-500/10 p-2 text-red-300">
+                  <Lock className="h-4 w-4" />
+                </div>
               </div>
 
-              <p className="mt-4 text-sm leading-7 text-white/68">
-                {item.description}
-              </p>
-
-              <div className="mt-6">
-                {allowed ? (
-                  <Link
-                    href={item.href}
-                    className="inline-flex rounded-full bg-yellow-400 px-5 py-2.5 text-sm font-bold text-black shadow-[0_0_18px_rgba(255,215,0,0.18)] transition duration-300 hover:scale-[1.03] hover:bg-yellow-300 hover:shadow-[0_0_24px_rgba(255,215,0,0.26)]"
-                  >
-                    Ouvrir la catégorie
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex cursor-not-allowed rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-bold text-white/45"
-                  >
-                    Accès non autorisé
-                  </button>
-                )}
+              <div className="mt-5 rounded-2xl border border-red-400/15 bg-red-500/[0.05] px-4 py-3">
+                <p className="text-sm font-semibold text-red-300">
+                  Accès non autorisé
+                </p>
+                <p className="mt-1 text-xs leading-5 text-white/45">
+                  Demande l’autorisation à un responsable pour accéder à cette catégorie.
+                </p>
               </div>
             </div>
           );
