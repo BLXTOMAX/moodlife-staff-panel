@@ -312,6 +312,14 @@ export default function MailAccesPage() {
 
                         <button
   type="button"
+  onClick={() => clearAll(user.email)}
+  className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-500/15"
+>
+  Tout retirer
+</button>
+
+<button
+  type="button"
   onClick={async () => {
     const ok = window.confirm(`Supprimer ${user.email} ?`);
     if (!ok) return;
@@ -343,31 +351,6 @@ export default function MailAccesPage() {
     });
   }}
   className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-500/15"
->
-  Supprimer
-</button>
-
-                        <button
-  onClick={async () => {
-    const ok = confirm(`Supprimer ${user.email} ?`);
-    if (!ok) return;
-
-    const res = await fetch("/api/users", {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ id: user.id }),
-    });
-
-    if (!res.ok) {
-      alert("Erreur suppression.");
-      return;
-    }
-
-    setUsers((prev) => prev.filter((u) => u.id !== user.id));
-  }}
-  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
 >
   Supprimer
 </button>
