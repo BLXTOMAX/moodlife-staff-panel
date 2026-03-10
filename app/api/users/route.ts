@@ -8,7 +8,7 @@ type StoredUser = {
   created_at?: string;
 };
 
-const DEFAULT_PERMISSIONS = ["info", "dashboard"];
+const DEFAULT_PERMISSIONS = ["/dashboard/info"];
 
 export async function GET() {
   try {
