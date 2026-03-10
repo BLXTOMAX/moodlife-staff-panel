@@ -61,18 +61,30 @@ export async function POST(request: Request) {
     }
 
     if (!existing) {
-      const { error: insertError } = await supabase
-        .from("users")
-        .insert([{ email, password }]);
+  const { error: insertError } = await supabase
+    .from("users")
+    .insert([{ email, password }]);
 
-      if (insertError) {
-        console.error("POST /api/users insert error:", insertError);
-        return NextResponse.json(
-          { success: false, message: "Impossible d'enregistrer l'utilisateur." },
-          { status: 500 }
-        );
-      }
-    }
+  if (insertError) {
+    console.error("POST /api/users insert error:", insertError);
+    return NextResponse.json(
+      { success: false, message: "Impossible d'enregistrer l'utilisateur." },
+      { status: 500 }
+    );
+  }
+
+  // permissions par défaut
+  const { error: permissionsError } = await supabase
+    .from("user_permissions")
+    .insert([
+      { email, permission: "info" },
+      { email, permission: "dashboard" },
+    ]);
+
+  if (permissionsError) {
+    console.error("POST /api/users permissions error:", permissionsError);
+  }
+}
 
     const { data: users, error: usersError } = await supabase
       .from("users")
@@ -191,3 +203,4 @@ export async function DELETE(request: Request) {
     );
   }
 }
+
