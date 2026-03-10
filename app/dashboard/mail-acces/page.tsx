@@ -15,7 +15,6 @@ type User = {
 type UserAccessMap = Record<string, string[]>;
 
 const availablePermissions = [
-  { key: "/dashboard/info", label: "Info serveur" },
   { key: "/dashboard/regles-staff", label: "Règles staff" },
   { key: "/dashboard/commandes-staff", label: "Commandes staff" },
   { key: "/dashboard/license", label: "License" },
@@ -183,13 +182,13 @@ export default function MailAccesPage() {
   }
 
   function clearAll(email: string) {
-    const nextMap = {
-      ...accessMap,
-      [email]: [],
-    };
+  const nextMap = {
+    ...accessMap,
+    [email]: ["/dashboard/info"],
+  };
 
-    saveAccess(nextMap, email);
-  }
+  saveAccess(nextMap, email);
+}
 
   return (
     <ProtectedPage permission="/dashboard/mail-acces">
