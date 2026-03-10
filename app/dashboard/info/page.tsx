@@ -7,6 +7,8 @@ import {
   Copy,
   Server,
   Users,
+  Radio,
+  Sparkles,
 } from "lucide-react";
 
 type ServerStats = {
@@ -15,7 +17,6 @@ type ServerStats = {
 };
 
 export default function InfoPage() {
-
   const [stats, setStats] = useState<ServerStats>({
     players: null,
     maxPlayers: null,
@@ -23,7 +24,6 @@ export default function InfoPage() {
 
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -78,127 +78,119 @@ export default function InfoPage() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-yellow-400/15 bg-gradient-to-r from-black/80 via-black/70 to-black/40 p-8 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
-        <div className="absolute inset-0 bg-black/35" />
-        <div className="absolute -left-10 top-0 h-40 w-40 rounded-full bg-yellow-400/10 blur-3xl" />
-        <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-yellow-300/10 blur-3xl" />
-
+      <section className="relative overflow-hidden rounded-[32px] border border-yellow-400/15 bg-gradient-to-br from-[#0a0a0a] via-[#101010] to-[#0c0c0c] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.08),transparent_24%)]" />
         <div className="relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-yellow-300">
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-yellow-300">
+            <Sparkles className="h-3.5 w-3.5" />
             Info serveur
-          </p>
+          </div>
 
-          <h2 className="mt-4 text-4xl font-black tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.75)]">
+          <h1 className="mt-5 text-4xl font-black tracking-tight text-white md:text-5xl">
             MoodLife en temps réel
-          </h2>
+          </h1>
 
-          <div className="mt-4 h-px w-40 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
-
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-white/85">
-            Retrouve ici les informations principales du serveur, avec le nombre
-            de joueurs connectés, l’état en direct et les accès rapides.
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-white/70 md:text-base">
+            Retrouve ici les informations principales du serveur, avec l’état
+            actuel, le nombre de joueurs connectés et les accès rapides les plus
+            utiles pour le staff.
           </p>
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="space-y-4">
-          <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/85 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/90">
-                  Joueurs connectés
-                </p>
-                <h3 className="mt-2 text-2xl font-black text-white">
-                  État du serveur
-                </h3>
-              </div>
-
-              <div
-                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
-                  isOnline
-                    ? "border-green-400/25 bg-green-500/10 text-green-300"
-                    : "border-white/10 bg-white/5 text-white/60"
-                }`}
-              >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    isOnline ? "bg-green-400" : "bg-white/40"
-                  }`}
-                />
-                {loading ? "Chargement" : isOnline ? "En ligne" : "Indisponible"}
-              </div>
+      <div className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
+        <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/90 p-6 shadow-[0_12px_35px_rgba(0,0,0,0.35)] backdrop-blur-md">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/90">
+                Joueurs connectés
+              </p>
+              <h2 className="mt-2 text-2xl font-black text-white">
+                État du serveur
+              </h2>
             </div>
 
-            <div className="mt-6 overflow-hidden rounded-[28px] border border-green-500/20 bg-gradient-to-br from-green-500/[0.12] via-green-400/[0.05] to-transparent p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-              <div className="flex flex-wrap items-start justify-between gap-6">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/65">
-                    <Server className="h-3.5 w-3.5" />
-                    Statistiques live
-                  </div>
-
-                  <p className="mt-5 text-sm text-white/70">
-                    Nombre actuel de joueurs
-                  </p>
-
-                  <div className="mt-3 flex items-end gap-3">
-                    <p className="text-6xl font-black leading-none text-white">
-                      {loading
-                        ? "..."
-                        : stats.players !== null
-                        ? stats.players
-                        : "--"}
-                    </p>
-
-                    <span className="pb-2 text-2xl font-bold text-white/40">
-                      / {stats.maxPlayers ?? "--"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                  <div className="flex items-center gap-2 text-white/70">
-                    <Users className="h-4 w-4 text-yellow-300" />
-                    <span className="text-sm">Capacité</span>
-                  </div>
-                  <p className="mt-2 text-xl font-bold text-white">
-                    {stats.maxPlayers ?? "--"} slots
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-8">
-                <div className="mb-2 flex items-center justify-between text-xs text-white/55">
-                  <span>Occupation</span>
-                  <span>{Math.round(fillPercentage)}%</span>
-                </div>
-
-                <div className="h-3 overflow-hidden rounded-full bg-black/30">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-green-400 via-yellow-300 to-yellow-400 transition-all duration-700"
-                    style={{ width: `${fillPercentage}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-5 flex items-center gap-2 text-sm text-white/65">
-                <Activity className="h-4 w-4 text-green-300" />
-                Mise à jour automatique toutes les 15 secondes.
-              </div>
+            <div
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
+                isOnline
+                  ? "border-green-400/25 bg-green-500/10 text-green-300"
+                  : "border-white/10 bg-white/5 text-white/60"
+              }`}
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  isOnline ? "bg-green-400" : "bg-white/40"
+                }`}
+              />
+              {loading ? "Chargement" : isOnline ? "En ligne" : "Indisponible"}
             </div>
           </div>
 
+          <div className="mt-6 overflow-hidden rounded-[28px] border border-green-500/20 bg-gradient-to-br from-green-500/[0.14] via-green-400/[0.05] to-transparent p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div className="flex flex-wrap items-start justify-between gap-6">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/65">
+                  <Radio className="h-3.5 w-3.5" />
+                  Statistiques live
+                </div>
 
+                <p className="mt-5 text-sm text-white/70">
+                  Nombre actuel de joueurs
+                </p>
+
+                <div className="mt-3 flex items-end gap-3">
+                  <p className="text-6xl font-black leading-none text-white md:text-7xl">
+                    {loading
+                      ? "..."
+                      : stats.players !== null
+                      ? stats.players
+                      : "--"}
+                  </p>
+
+                  <span className="pb-2 text-2xl font-bold text-white/35">
+                    / {stats.maxPlayers ?? "--"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                <div className="flex items-center gap-2 text-white/70">
+                  <Users className="h-4 w-4 text-yellow-300" />
+                  <span className="text-sm">Capacité</span>
+                </div>
+                <p className="mt-2 text-xl font-bold text-white">
+                  {stats.maxPlayers ?? "--"} slots
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <div className="mb-2 flex items-center justify-between text-xs text-white/55">
+                <span>Occupation</span>
+                <span>{Math.round(fillPercentage)}%</span>
+              </div>
+
+              <div className="h-3 overflow-hidden rounded-full bg-black/30">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-green-400 via-yellow-300 to-yellow-400 transition-all duration-700"
+                  style={{ width: `${fillPercentage}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center gap-2 text-sm text-white/65">
+              <Activity className="h-4 w-4 text-green-300" />
+              Mise à jour automatique toutes les 15 secondes.
+            </div>
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="grid gap-4">
           <a
             href="https://discord.gg/moodlife"
             target="_blank"
             rel="noreferrer"
-            className="group block rounded-[28px] border border-indigo-400/20 bg-gradient-to-r from-indigo-500 to-indigo-400 p-6 text-white shadow-[0_10px_30px_rgba(79,70,229,0.22)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(79,70,229,0.30)]"
+            className="group rounded-[28px] border border-indigo-400/20 bg-gradient-to-r from-indigo-500 to-indigo-400 p-6 text-white shadow-[0_10px_30px_rgba(79,70,229,0.22)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(79,70,229,0.30)]"
           >
             <p className="text-sm text-white/80">Discord officiel</p>
             <div className="mt-2 flex items-center justify-between gap-4">
@@ -209,7 +201,7 @@ export default function InfoPage() {
 
           <a
             href="https://cfx.re/join/5g6lmd"
-            className="group block rounded-[28px] border border-yellow-400/20 bg-gradient-to-r from-yellow-400 to-yellow-300 p-6 text-black shadow-[0_10px_30px_rgba(250,204,21,0.22)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(250,204,21,0.30)]"
+            className="group rounded-[28px] border border-yellow-400/20 bg-gradient-to-r from-yellow-400 to-yellow-300 p-6 text-black shadow-[0_10px_30px_rgba(250,204,21,0.22)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(250,204,21,0.30)]"
           >
             <p className="text-sm text-black/70">Connexion directe</p>
             <div className="mt-2 flex items-center justify-between gap-4">
@@ -219,17 +211,20 @@ export default function InfoPage() {
           </a>
 
           <div className="rounded-[28px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_25px_rgba(0,0,0,0.35)]">
-            <p className="text-sm text-white/60">Commande de connexion</p>
+            <div className="flex items-center gap-2 text-white/80">
+              <Server className="h-4 w-4 text-yellow-300" />
+              <p className="text-sm">Commande de connexion</p>
+            </div>
 
-            <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/25 p-4 md:flex-row md:items-center md:justify-between">
-              <p className="break-all text-xl font-bold text-yellow-300">
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4">
+              <p className="break-all text-lg font-bold text-yellow-300 md:text-xl">
                 connect cfx.re/join/5g6lmd
               </p>
 
               <button
                 type="button"
                 onClick={handleCopy}
-                className="inline-flex items-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-2 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-400/15"
+                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-2 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-400/15"
               >
                 <Copy className="h-4 w-4" />
                 {copied ? "Copié" : "Copier"}
@@ -238,5 +233,6 @@ export default function InfoPage() {
           </div>
         </div>
       </div>
+    </div>
   );
 }
