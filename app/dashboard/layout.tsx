@@ -24,6 +24,8 @@ const ALL_ITEMS: PermissionItem[] = [
   { href: "/dashboard/mail-acces", label: "Mail accès" },
 ];
 
+const ALWAYS_ALLOWED = ["/dashboard", "/dashboard/info"];
+
 export default function DashboardLayout({
   children,
 }: {
@@ -36,16 +38,19 @@ export default function DashboardLayout({
   const [allowedPaths, setAllowedPaths] = useState<string[]>([]);
 
   useEffect(() => {
+    let mounted = true;
+
     const checkAccess = async () => {
       const email = getSessionEmail();
 
       if (!email) {
-        setAllowed(false);
+        if (mounted) setAllowed(false);
         router.replace("/login");
         return;
       }
 
       if (isOwner(email)) {
+        if (!mounted) return;
         setAllowedPaths(ALL_ITEMS.map((item) => item.href));
         setAllowed(true);
         return;
@@ -58,35 +63,28 @@ export default function DashboardLayout({
 
       if (error) {
         console.error("Erreur récupération permissions layout :", error);
-        setAllowed(false);
+        if (mounted) setAllowed(false);
         router.replace("/login");
         return;
       }
 
-      const permissions = (data || []).map((item) => item.permission);
+      const dbPermissions = (data || []).map((item) => item.permission);
+      const permissions = Array.from(
+        new Set([...ALWAYS_ALLOWED, ...dbPermissions])
+      );
+
+      if (!mounted) return;
+
       setAllowedPaths(permissions);
 
       if (pathname === "/dashboard") {
-        if (permissions.length > 0) {
-          setAllowed(false);
-          router.replace(permissions[0]);
-          return;
-        }
-
-        setAllowed(false);
-        router.replace("/login");
+        setAllowed(true);
         return;
       }
 
       if (!permissions.includes(pathname)) {
         setAllowed(false);
-
-        if (permissions.length > 0) {
-          router.replace(permissions[0]);
-        } else {
-          router.replace("/login");
-        }
-
+        router.replace("/dashboard");
         return;
       }
 
@@ -94,6 +92,10 @@ export default function DashboardLayout({
     };
 
     checkAccess();
+
+    return () => {
+      mounted = false;
+    };
   }, [pathname, router]);
 
   const visibleItems = useMemo(() => {
@@ -108,10 +110,20 @@ export default function DashboardLayout({
   };
 
   if (allowed === null) {
-    return <div className="min-h-screen bg-black p-6 text-white">Chargement...</div>;
+    return (
+      <div className="min-h-screen bg-black p-6 text-white">
+        Chargement...
+      </div>
+    );
   }
 
-  if (!allowed) return null;
+  if (!allowed) {
+    return (
+      <div className="min-h-screen bg-black p-6 text-white">
+        Redirection...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -119,7 +131,9 @@ export default function DashboardLayout({
         <aside className="w-[260px] border-r border-yellow-400/10 bg-black/80 p-6">
           <div className="mb-8">
             <h1 className="text-4xl font-black text-yellow-400">M</h1>
-            <h2 className="mt-4 text-3xl font-black text-yellow-400">Panel Staff</h2>
+            <h2 className="mt-4 text-3xl font-black text-yellow-400">
+              Panel Staff
+            </h2>
             <p className="mt-2 text-sm text-white/60">Gestion interne du staff</p>
           </div>
 
@@ -133,7 +147,7 @@ export default function DashboardLayout({
                   href={item.href}
                   className={`block rounded-xl px-4 py-3 text-sm transition ${
                     active
-                      ? "bg-yellow-400 text-black font-bold"
+                      ? "bg-yellow-400 font-bold text-black"
                       : "text-white/85 hover:bg-white/5"
                   }`}
                 >
@@ -151,9 +165,7 @@ export default function DashboardLayout({
           </button>
         </aside>
 
-        <main className="flex-1 overflow-x-hidden">
-          {children}
-        </main>
+        <main className="flex-1 overflow-x-hidden">{children}</main>
       </div>
     </div>
   );
