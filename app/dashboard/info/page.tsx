@@ -27,21 +27,46 @@ export default function InfoPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    try {
-      const rawAccess = localStorage.getItem("moodlife-user-access");
+    let interval: NodeJS.Timeout;
 
-      if (rawAccess) {
-        const accessMap = JSON.parse(rawAccess) as Record<string, string[]>;
+    async function fetchStaffCount() {
+      try {
+        const res = await fetch("/api/staff-online", {
+          cache: "no-store",
+        });
 
-        const count = Object.values(accessMap).filter((permissions) =>
-          permissions.includes("/dashboard/info")
-        ).length;
+        if (!res.ok) {
+          throw new Error("Impossible de récupérer le nombre de staff connectés");
+        }
 
-        setStaffCount(count);
+        const data = await res.json();
+        setStaffCount(data.count ?? 0);
+      } catch (error) {
+        console.error("Erreur récupération staffCount :", error);
+        setStaffCount(0);
       }
-    } catch (error) {
-      console.error("Erreur lecture staffCount :", error);
     }
+
+    async function sendHeartbeat() {
+      try {
+        await fetch("/api/staff-heartbeat", {
+          method: "POST",
+          cache: "no-store",
+        });
+      } catch (error) {
+        console.error("Erreur heartbeat staff :", error);
+      }
+    }
+
+    fetchStaffCount();
+    sendHeartbeat();
+
+    interval = setInterval(() => {
+      sendHeartbeat();
+      fetchStaffCount();
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
