@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Copy,
   Server,
-  Shield,
   Users,
 } from "lucide-react";
 
@@ -16,7 +15,6 @@ type ServerStats = {
 };
 
 export default function InfoPage() {
-  const [staffCount, setStaffCount] = useState(0);
 
   const [stats, setStats] = useState<ServerStats>({
     players: null,
@@ -29,37 +27,7 @@ export default function InfoPage() {
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
-    async function fetchStaffCount() {
-      try {
-        const res = await fetch("/api/staff-online", {
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          throw new Error("Impossible de récupérer le nombre de staff connectés");
-        }
-
-        const data = await res.json();
-        setStaffCount(data.count ?? 0);
-      } catch (error) {
-        console.error("Erreur récupération staffCount :", error);
-        setStaffCount(0);
-      }
-    }
-
-    async function sendHeartbeat() {
-      try {
-        await fetch("/api/staff-heartbeat", {
-          method: "POST",
-          cache: "no-store",
-        });
-      } catch (error) {
-        console.error("Erreur heartbeat staff :", error);
-      }
-    }
-
-    fetchStaffCount();
-    sendHeartbeat();
+    
 
     interval = setInterval(() => {
       sendHeartbeat();
@@ -233,19 +201,7 @@ export default function InfoPage() {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_25px_rgba(0,0,0,0.35)]">
-            <div className="flex items-center gap-2 text-yellow-300">
-              <Shield className="h-4 w-4" />
-              <p className="text-xs uppercase tracking-[0.24em]">
-                Nombre de staff MoodLife
-              </p>
-            </div>
 
-            <p className="mt-3 text-4xl font-black text-white">{staffCount}</p>
-
-            <p className="mt-2 text-sm text-white/60">
-              Staff ayant accès à cette page.
-            </p>
           </div>
         </div>
 
@@ -294,6 +250,5 @@ export default function InfoPage() {
           </div>
         </div>
       </div>
-    </div>
   );
 }

@@ -1,26 +1,18 @@
-import type { Metadata } from "next";
-import Image from "next/image";
-import "./globals.css";
+import Sidebar from "@/components/sidebar";
+import Topbar from "@/components/topbar";
 
-export const metadata: Metadata = {
-  title: "MoodLifeRP Panel",
-  description: "Panel staff MoodLifeRP",
-};
-
-export default function RootLayout({
+export default function DashboardLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="fr">
-      <body className="bg-[#05070b] text-white">
-        <div className="pointer-events-none fixed left-5 top-5 z-50 opacity-95">
-          
-        </div>
-
-        {children}
-      </body>
-    </html>
+    <div className="min-h-screen bg-black text-white">
+      <Sidebar />
+      <div className="ml-[...taille-sidebar...]">
+        <Topbar />
+        <main>{children}</main>
+      </div>
+    </div>
   );
 }
