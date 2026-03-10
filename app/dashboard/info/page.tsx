@@ -24,18 +24,6 @@ export default function InfoPage() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    
-
-    interval = setInterval(() => {
-      sendHeartbeat();
-      fetchStaffCount();
-    }, 15000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
