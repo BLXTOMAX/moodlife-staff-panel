@@ -20,26 +20,22 @@ export default function ProtectedPage({
     const checkAccess = async () => {
       const email = getSessionEmail();
 
-console.log("ProtectedPage email =", email);
-console.log("ProtectedPage permission =", permission);
-
-      console.log("ProtectedPage email:", email);
-      console.log("ProtectedPage permission:", permission);
+      console.log("ProtectedPage email =", email);
+      console.log("ProtectedPage permission =", permission);
 
       if (!email) {
-        if (mounted) setAllowed(false);
+        if (mounted) {
+          setAllowed(false);
+        }
         router.replace("/login");
         return;
       }
 
       const owner = isOwner(email);
-const permitted = owner || (await hasPermission(permission));
+      const permitted = owner || (await hasPermission(permission));
 
-console.log("ProtectedPage owner =", owner);
-console.log("ProtectedPage permitted =", permitted);
-
-      console.log("ProtectedPage owner:", owner);
-      console.log("ProtectedPage permitted:", permitted);
+      console.log("ProtectedPage owner =", owner);
+      console.log("ProtectedPage permitted =", permitted);
 
       if (!mounted) return;
 
@@ -47,7 +43,7 @@ console.log("ProtectedPage permitted =", permitted);
         setAllowed(true);
       } else {
         setAllowed(false);
-        router.replace("/dashboard");
+        router.replace("/dashboard/info");
       }
     };
 
