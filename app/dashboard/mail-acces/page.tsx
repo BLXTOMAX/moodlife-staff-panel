@@ -324,31 +324,37 @@ export default function MailAccesPage() {
     const ok = window.confirm(`Supprimer ${user.email} ?`);
     if (!ok) return;
 
-    const res = await fetch("/api/users", {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id: user.id,
-        email: user.email,
-      }),
-    });
+    try {
+      const res = await fetch("/api/users", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: user.email,
+        }),
+      });
 
-    const data = await res.json().catch(() => null);
+      const data = await res.json();
 
-    if (!res.ok || !data?.success) {
-      alert(data?.message || "Erreur suppression.");
-      return;
+      if (!res.ok || !data.success) {
+        alert(data?.message || "Erreur suppression.");
+        return;
+      }
+
+      // retire de l'écran
+      setUsers((prev) => prev.filter((u) => u.email !== user.email));
+
+      setAccessMap((prev) => {
+        const next = { ...prev };
+        delete next[user.email];
+        return next;
+      });
+
+    } catch (error) {
+      console.error("Erreur suppression :", error);
+      alert("Erreur serveur.");
     }
-
-    setUsers((prev) => prev.filter((u) => u.id !== user.id));
-
-    setAccessMap((prev) => {
-      const next = { ...prev };
-      delete next[user.email];
-      return next;
-    });
   }}
   className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-500/15"
 >
