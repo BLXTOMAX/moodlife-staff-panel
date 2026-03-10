@@ -8,6 +8,8 @@ type StoredUser = {
   created_at?: string;
 };
 
+const DEFAULT_PERMISSIONS = ["info", "dashboard"];
+
 export async function GET() {
   try {
     const { data, error } = await supabase
@@ -23,7 +25,10 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json({ success: true, users: (data || []) as StoredUser[] });
+    return NextResponse.json({
+      success: true,
+      users: (data || []) as StoredUser[],
+    });
   } catch (error) {
     console.error("GET /api/users error:", error);
     return NextResponse.json(
@@ -48,7 +53,7 @@ export async function POST(request: Request) {
 
     const { data: existing, error: selectError } = await supabase
       .from("users")
-      .select("id,email")
+      .select("id, email")
       .eq("email", email)
       .maybeSingle();
 
@@ -61,30 +66,65 @@ export async function POST(request: Request) {
     }
 
     if (!existing) {
-  const { error: insertError } = await supabase
-    .from("users")
-    .insert([{ email, password }]);
+      const { error: insertError } = await supabase
+        .from("users")
+        .insert([{ email, password }]);
 
-  if (insertError) {
-    console.error("POST /api/users insert error:", insertError);
-    return NextResponse.json(
-      { success: false, message: "Impossible d'enregistrer l'utilisateur." },
-      { status: 500 }
+      if (insertError) {
+        console.error("POST /api/users insert error:", insertError);
+        return NextResponse.json(
+          { success: false, message: "Impossible d'enregistrer l'utilisateur." },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Vérifie toujours les permissions par défaut, même si l'utilisateur existe déjà
+    const { data: currentPermissions, error: permissionsFetchError } = await supabase
+      .from("user_permissions")
+      .select("permission")
+      .eq("email", email);
+
+    if (permissionsFetchError) {
+      console.error(
+        "POST /api/users fetch permissions error:",
+        permissionsFetchError
+      );
+      return NextResponse.json(
+        { success: false, message: "Impossible de vérifier les permissions." },
+        { status: 500 }
+      );
+    }
+
+    const existingPermissions = new Set(
+      (currentPermissions || []).map((item) => String(item.permission))
     );
-  }
 
-  // permissions par défaut
-  const { error: permissionsError } = await supabase
-    .from("user_permissions")
-    .insert([
-      { email, permission: "info" },
-      { email, permission: "dashboard" },
-    ]);
+    const missingPermissions = DEFAULT_PERMISSIONS.filter(
+      (permission) => !existingPermissions.has(permission)
+    );
 
-  if (permissionsError) {
-    console.error("POST /api/users permissions error:", permissionsError);
-  }
-}
+    if (missingPermissions.length > 0) {
+      const { error: permissionsInsertError } = await supabase
+        .from("user_permissions")
+        .insert(
+          missingPermissions.map((permission) => ({
+            email,
+            permission,
+          }))
+        );
+
+      if (permissionsInsertError) {
+        console.error(
+          "POST /api/users insert permissions error:",
+          permissionsInsertError
+        );
+        return NextResponse.json(
+          { success: false, message: "Utilisateur créé mais permissions incomplètes." },
+          { status: 500 }
+        );
+      }
+    }
 
     const { data: users, error: usersError } = await supabase
       .from("users")
@@ -94,7 +134,10 @@ export async function POST(request: Request) {
     if (usersError) {
       console.error("POST /api/users reload error:", usersError);
       return NextResponse.json(
-        { success: false, message: "Utilisateur créé mais rechargement impossible." },
+        {
+          success: false,
+          message: "Utilisateur créé mais rechargement impossible.",
+        },
         { status: 500 }
       );
     }
@@ -122,33 +165,40 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const targetEmail = email
-      ? email
-      : (() => {
-          return "";
-        })();
-
     if (id) {
-      const { error: permissionsError } = await supabase
-        .from("user_permissions")
-        .delete()
-        .eq("user_id", id);
-
-      if (permissionsError) {
-        console.error("DELETE /api/users permissions by id error:", permissionsError);
-      }
-
-      const { data: userRow } = await supabase
+      const { data: userRow, error: userFetchError } = await supabase
         .from("users")
         .select("email")
         .eq("id", id)
         .maybeSingle();
 
-      if (userRow?.email) {
+      if (userFetchError) {
+        console.error("DELETE /api/users fetch by id error:", userFetchError);
+        return NextResponse.json(
+          { success: false, message: "Impossible de récupérer l'utilisateur." },
+          { status: 500 }
+        );
+      }
+
+      const userEmail = String(userRow?.email || "").trim().toLowerCase();
+
+      const { error: permissionsByUserIdError } = await supabase
+        .from("user_permissions")
+        .delete()
+        .eq("user_id", id);
+
+      if (permissionsByUserIdError) {
+        console.error(
+          "DELETE /api/users permissions by id error:",
+          permissionsByUserIdError
+        );
+      }
+
+      if (userEmail) {
         const { error: permissionsByEmailError } = await supabase
           .from("user_permissions")
           .delete()
-          .eq("email", userRow.email);
+          .eq("email", userEmail);
 
         if (permissionsByEmailError) {
           console.error(
@@ -164,6 +214,7 @@ export async function DELETE(request: Request) {
         .eq("id", id);
 
       if (userError) {
+        console.error("DELETE /api/users delete by id error:", userError);
         return NextResponse.json(
           { success: false, message: userError.message },
           { status: 500 }
@@ -172,6 +223,8 @@ export async function DELETE(request: Request) {
 
       return NextResponse.json({ success: true });
     }
+
+    const targetEmail = email;
 
     const { error: permissionsError } = await supabase
       .from("user_permissions")
@@ -188,6 +241,7 @@ export async function DELETE(request: Request) {
       .eq("email", targetEmail);
 
     if (userError) {
+      console.error("DELETE /api/users delete by email error:", userError);
       return NextResponse.json(
         { success: false, message: userError.message },
         { status: 500 }
@@ -203,4 +257,3 @@ export async function DELETE(request: Request) {
     );
   }
 }
-
