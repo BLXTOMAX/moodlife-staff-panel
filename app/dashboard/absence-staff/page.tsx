@@ -12,7 +12,6 @@ type Absence = {
   status: "En attente" | "Validée" | "Refusée";
 };
 
-const ACCESS_STORAGE_KEY = "moodlife-user-access";
 const SESSION_STORAGE_KEY = "moodlife-session-email";
 
 function formatDate(date: string) {
@@ -55,6 +54,7 @@ function StatCard({
 
 export default function AbsenceStaffPage() {
   const [canValidateAbsences, setCanValidateAbsences] = useState(false);
+  const [absences, setAbsences] = useState<Absence[]>([]);
 
   const [form, setForm] = useState({
     staffName: "",
@@ -63,34 +63,6 @@ export default function AbsenceStaffPage() {
     endDate: "",
   });
 
-  const [absences, setAbsences] = useState<Absence[]>([]);
-
-  useEffect(() => {
-  try {
-    const sessionEmail = localStorage.getItem(SESSION_STORAGE_KEY);
-    const savedAccess = localStorage.getItem(ACCESS_STORAGE_KEY);
-
-    console.log("sessionEmail =", sessionEmail);
-    console.log("savedAccess =", savedAccess);
-
-    if (!sessionEmail || !savedAccess) {
-      setCanValidateAbsences(false);
-      return;
-    }
-
-    const accessMap = JSON.parse(savedAccess) as Record<string, string[]>;
-    const permissions = accessMap[sessionEmail] ?? [];
-
-    console.log("permissions =", permissions);
-
-    setCanValidateAbsences(permissions.includes("absence-validation"));
-  } catch (error) {
-    console.error("Erreur lecture permissions absence :", error);
-    setCanValidateAbsences(false);
-  }
-}, []);
-
-  useEffect(() => {
   async function loadAbsences() {
     const { data, error } = await supabase
       .from("absences")
@@ -114,8 +86,39 @@ export default function AbsenceStaffPage() {
     );
   }
 
-  loadAbsences();
-}, []);
+  useEffect(() => {
+    async function initPage() {
+      try {
+        const sessionEmail = localStorage.getItem(SESSION_STORAGE_KEY);
+
+        if (!sessionEmail) {
+          setCanValidateAbsences(false);
+          await loadAbsences();
+          return;
+        }
+
+        const { data: permissionRows, error: permissionError } = await supabase
+          .from("user_permissions")
+          .select("permission")
+          .eq("email", sessionEmail);
+
+        if (permissionError) {
+          console.error("Erreur lecture permissions absence :", permissionError);
+          setCanValidateAbsences(false);
+        } else {
+          const permissions = (permissionRows || []).map((row) => row.permission);
+          setCanValidateAbsences(permissions.includes("absence-validation"));
+        }
+
+        await loadAbsences();
+      } catch (error) {
+        console.error("Erreur initialisation absence :", error);
+        setCanValidateAbsences(false);
+      }
+    }
+
+    initPage();
+  }, []);
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -124,10 +127,11 @@ export default function AbsenceStaffPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     if (!form.staffName || !form.reason || !form.startDate || !form.endDate) {
+      alert("Remplis tous les champs.");
       return;
     }
 
@@ -136,37 +140,22 @@ export default function AbsenceStaffPage() {
       return;
     }
 
-  async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault();
+    const sessionEmail = localStorage.getItem(SESSION_STORAGE_KEY);
 
-  if (!form.staffName || !form.reason || !form.startDate || !form.endDate) {
-    return;
-  }
+    const { error } = await supabase.from("absences").insert({
+      staff_name: form.staffName,
+      reason: form.reason,
+      start_date: form.startDate,
+      end_date: form.endDate,
+      status: "En attente",
+      created_by_email: sessionEmail,
+    });
 
-  if (new Date(form.endDate) < new Date(form.startDate)) {
-    alert("La date de fin ne peut pas être avant la date de début.");
-    return;
-  }
-
-  const { error } = await supabase.from("absences").insert({
-    staff_name: form.staffName,
-    reason: form.reason,
-    start_date: form.startDate,
-    end_date: form.endDate,
-    status: "En attente",
-    created_by_email: localStorage.getItem("moodlife-session-email"),
-  });
-
-  if (error) {
-    console.error("Erreur création absence :", error);
-    alert("Erreur lors de la création de l'absence");
-    return;
-  }
-
-  location.reload();
-}
-
-location.reload();
+    if (error) {
+      console.error("Erreur création absence :", error);
+      alert("Erreur lors de la création de l'absence.");
+      return;
+    }
 
     setForm({
       staffName: "",
@@ -174,24 +163,27 @@ location.reload();
       startDate: "",
       endDate: "",
     });
+
+    await loadAbsences();
   }
 
   async function updateAbsenceStatus(
-  id: string,
-  status: "Validée" | "Refusée"
-) {
-  const { error } = await supabase
-    .from("absences")
-    .update({ status })
-    .eq("id", id);
+    id: string,
+    status: "Validée" | "Refusée"
+  ) {
+    const { error } = await supabase
+      .from("absences")
+      .update({ status })
+      .eq("id", id);
 
-  if (error) {
-    console.error("Erreur validation absence:", error);
-    return;
+    if (error) {
+      console.error("Erreur validation absence :", error);
+      alert("Erreur lors de la mise à jour du statut.");
+      return;
+    }
+
+    await loadAbsences();
   }
-
-  location.reload();
-}
 
   const groupedByMonth = useMemo(() => {
     const groups: Record<string, Absence[]> = {};
