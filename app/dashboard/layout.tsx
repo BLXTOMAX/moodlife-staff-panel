@@ -13,6 +13,7 @@ type PermissionItem = {
 
 const ALL_ITEMS: PermissionItem[] = [
   { href: "/dashboard/info", label: "Info serveur" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/dashboard/regles-staff", label: "Règles Staff" },
   { href: "/dashboard/commandes-staff", label: "Commandes Staff" },
   { href: "/dashboard/license", label: "License" },
