@@ -6,8 +6,10 @@ import ProtectedPage from "@/components/protected-page";
 import { supabase } from "@/lib/supabase";
 
 type User = {
+  id: string;
   email: string;
   password: string;
+  created_at?: string;
 };
 
 type UserAccessMap = Record<string, string[]>;
@@ -309,12 +311,66 @@ export default function MailAccesPage() {
                         </button>
 
                         <button
-                          type="button"
-                          onClick={() => clearAll(user.email)}
-                          className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-500/15"
-                        >
-                          Tout retirer
-                        </button>
+  type="button"
+  onClick={async () => {
+    const ok = window.confirm(`Supprimer ${user.email} ?`);
+    if (!ok) return;
+
+    const res = await fetch("/api/users", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: user.id,
+        email: user.email,
+      }),
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data?.success) {
+      alert(data?.message || "Erreur suppression.");
+      return;
+    }
+
+    setUsers((prev) => prev.filter((u) => u.id !== user.id));
+
+    setAccessMap((prev) => {
+      const next = { ...prev };
+      delete next[user.email];
+      return next;
+    });
+  }}
+  className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-500/15"
+>
+  Supprimer
+</button>
+
+                        <button
+  onClick={async () => {
+    const ok = confirm(`Supprimer ${user.email} ?`);
+    if (!ok) return;
+
+    const res = await fetch("/api/users", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id: user.id }),
+    });
+
+    if (!res.ok) {
+      alert("Erreur suppression.");
+      return;
+    }
+
+    setUsers((prev) => prev.filter((u) => u.id !== user.id));
+  }}
+  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+>
+  Supprimer
+</button>
                       </div>
                     </div>
 
