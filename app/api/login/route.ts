@@ -1,23 +1,40 @@
 import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 import { markStaffOnline } from "@/lib/staff-presence";
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const email = body?.email;
+  const email = body?.email?.toLowerCase();
   const password = body?.password;
 
-  const adminEmail = "admin@moodlife.fr";
-  const adminPassword = "Moodlife123!";
-
-  if (email !== adminEmail || password !== adminPassword) {
+  if (!email || !password) {
     return NextResponse.json(
-      { success: false, message: "Identifiants invalides." },
+      { success: false, message: "Email ou mot de passe manquant." },
+      { status: 400 }
+    );
+  }
+
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", email)
+    .single();
+
+  if (error || !user) {
+    return NextResponse.json(
+      { success: false, message: "Utilisateur introuvable." },
+      { status: 401 }
+    );
+  }
+
+  if (user.password !== password) {
+    return NextResponse.json(
+      { success: false, message: "Mot de passe incorrect." },
       { status: 401 }
     );
   }
 
   const sessionId = crypto.randomUUID();
-
   markStaffOnline(sessionId);
 
   const response = NextResponse.json({
