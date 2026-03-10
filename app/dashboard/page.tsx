@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { Lock } from "lucide-react";
-import { getSessionEmail, hasPermission, isOwner } from "@/lib/access";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { getSessionEmail, isOwner } from "@/lib/access";
+
+const ALWAYS_ALLOWED_PERMISSIONS = ["/dashboard", "/dashboard/info"];
 
 const categories = [
   {
@@ -55,6 +59,8 @@ const categories = [
 export default function DashboardPage() {
   const sessionEmail = getSessionEmail();
   const owner = isOwner(sessionEmail);
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [loadingPermissions, setLoadingPermissions] = useState(true);
 
   return (
     <section className="space-y-8">
@@ -77,7 +83,8 @@ export default function DashboardPage() {
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {categories.map((item) => {
-          const allowed = owner || hasPermission(item.href);
+          const allowed =
+  owner || permissions.includes(item.href) || loadingPermissions;
 
           return (
             <div
