@@ -19,12 +19,7 @@ const ALL_ITEMS: PermissionItem[] = [
   { href: "/dashboard/mail", label: "Mail Suicide RP" },
   { href: "/dashboard/absence-staff", label: "Absence Staff" },
   { href: "/dashboard/espace-sa-gerant", label: "Espace S-A / Gérant-Staff" },
-  { href: "/dashboard/heures-staff", label: "Heures Staff" },
-  { href: "/dashboard/bl-staff", label: "BL Staff" },
-  { href: "/dashboard/remontees", label: "Remontées" },
   { href: "/dashboard/deban-non-autorise", label: "Deban Non Autorisé" },
-  { href: "/dashboard/deban-anticheat", label: "Deban anticheat" },
-  { href: "/dashboard/responsable-event", label: "Responsable event" },
   { href: "/dashboard/mail-acces", label: "Mail accès" },
 ];
 

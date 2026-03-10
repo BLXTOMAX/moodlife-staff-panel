@@ -10,7 +10,6 @@ import {
   FileBadge,
   Mail,
   Ban,
-  Clock3,
   Users,
 } from "lucide-react";
 
@@ -68,12 +67,6 @@ const links: SidebarLink[] = [
     href: "/dashboard/espace-sa-gerant",
     label: "Espace S-A / Gérant-Staff",
     icon: Shield,
-    section: "staff",
-  },
-  {
-    href: "/dashboard/heures-staff",
-    label: "Heures Staff",
-    icon: Clock3,
     section: "staff",
   },
   {
