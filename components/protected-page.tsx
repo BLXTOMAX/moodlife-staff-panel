@@ -15,31 +15,44 @@ export default function ProtectedPage({
   const [allowed, setAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
     const checkAccess = async () => {
       const email = getSessionEmail();
 
       if (!email) {
+        if (mounted) setAllowed(false);
         router.replace("/login");
         return;
       }
 
-      if (isOwner(email) || (await hasPermission(permission))) {
-        setAllowed(true);
-        return;
-      }
+      const owner = isOwner(email);
+      const permitted = owner || (await hasPermission(permission));
 
-      setAllowed(false);
-      router.replace("/dashboard");
+      if (!mounted) return;
+
+      if (permitted) {
+        setAllowed(true);
+      } else {
+        setAllowed(false);
+        router.replace("/dashboard");
+      }
     };
 
     checkAccess();
+
+    return () => {
+      mounted = false;
+    };
   }, [permission, router]);
 
   if (allowed === null) {
     return <div className="p-6 text-white/70">Vérification des accès...</div>;
   }
 
-  if (!allowed) return null;
+  if (!allowed) {
+    return <div className="p-6 text-white/70">Redirection...</div>;
+  }
 
   return <>{children}</>;
 }

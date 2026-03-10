@@ -42,8 +42,7 @@ export default function LoginPage() {
       localStorage.setItem("moodlife-session-email", normalizedEmail);
       localStorage.removeItem("moodlife-email");
 
-      router.push("/dashboard/info");
-      router.refresh();
+      window.location.href = "/dashboard/info";
     } catch (error) {
       console.error("Erreur login :", error);
       alert("Une erreur est survenue.");
