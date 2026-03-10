@@ -59,8 +59,44 @@ const categories = [
 export default function DashboardPage() {
   const sessionEmail = getSessionEmail();
   const owner = isOwner(sessionEmail);
+
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loadingPermissions, setLoadingPermissions] = useState(true);
+
+  useEffect(() => {
+    async function loadPermissions() {
+      try {
+        if (!sessionEmail) {
+          setPermissions(ALWAYS_ALLOWED_PERMISSIONS);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("user_permissions")
+          .select("permission")
+          .eq("email", sessionEmail);
+
+        if (error) {
+          console.error("Erreur chargement permissions :", error);
+          setPermissions(ALWAYS_ALLOWED_PERMISSIONS);
+          return;
+        }
+
+        const dbPermissions = (data || []).map((p) => p.permission);
+
+        setPermissions([
+          ...new Set([...ALWAYS_ALLOWED_PERMISSIONS, ...dbPermissions]),
+        ]);
+      } catch (err) {
+        console.error("Erreur dashboard permissions :", err);
+        setPermissions(ALWAYS_ALLOWED_PERMISSIONS);
+      } finally {
+        setLoadingPermissions(false);
+      }
+    }
+
+    loadPermissions();
+  }, [sessionEmail]);
 
   return (
     <section className="space-y-8">
@@ -84,7 +120,7 @@ export default function DashboardPage() {
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {categories.map((item) => {
           const allowed =
-  owner || permissions.includes(item.href) || loadingPermissions;
+            owner || permissions.includes(item.href) || loadingPermissions;
 
           return (
             <div
@@ -102,7 +138,9 @@ export default function DashboardPage() {
               <div className="mt-3 flex items-start justify-between gap-3">
                 <h2
                   className={`text-2xl font-bold ${
-                    allowed ? "text-white group-hover:text-yellow-300" : "text-white/85"
+                    allowed
+                      ? "text-white group-hover:text-yellow-300"
+                      : "text-white/85"
                   }`}
                 >
                   {item.title}
