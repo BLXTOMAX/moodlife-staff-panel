@@ -14,6 +14,8 @@ type User = {
 
 type UserAccessMap = Record<string, string[]>;
 
+const ALWAYS_ALLOWED_PERMISSION = "/dashboard/info";
+
 const availablePermissions = [
   { key: "/dashboard/regles-staff", label: "Règles staff" },
   { key: "/dashboard/commandes-staff", label: "Commandes staff" },
@@ -159,32 +161,41 @@ export default function MailAccesPage() {
   }, [accessMap]);
 
   function togglePermission(email: string, permission: string) {
-    const current = accessMap[email] ?? [];
-    const exists = current.includes(permission);
+  const current = accessMap[email] ?? [];
+  const exists = current.includes(permission);
 
-    const nextMap = {
-      ...accessMap,
-      [email]: exists
-        ? current.filter((item) => item !== permission)
-        : [...current, permission],
-    };
+  const nextPermissions = exists
+    ? current.filter((item) => item !== permission)
+    : [...current, permission];
 
-    saveAccess(nextMap, email);
-  }
+  const nextMap = {
+    ...accessMap,
+    [email]: Array.from(
+      new Set([ALWAYS_ALLOWED_PERMISSION, ...nextPermissions])
+    ),
+  };
+
+  saveAccess(nextMap, email);
+}
 
   function grantAll(email: string) {
-    const nextMap = {
-      ...accessMap,
-      [email]: availablePermissions.map((item) => item.key),
-    };
+  const nextMap = {
+    ...accessMap,
+    [email]: Array.from(
+      new Set([
+        ALWAYS_ALLOWED_PERMISSION,
+        ...availablePermissions.map((item) => item.key),
+      ])
+    ),
+  };
 
-    saveAccess(nextMap, email);
-  }
+  saveAccess(nextMap, email);
+}
 
   function clearAll(email: string) {
   const nextMap = {
     ...accessMap,
-    [email]: ["/dashboard/info"],
+    [email]: [ALWAYS_ALLOWED_PERMISSION],
   };
 
   saveAccess(nextMap, email);
