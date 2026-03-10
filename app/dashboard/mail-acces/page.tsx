@@ -342,14 +342,7 @@ export default function MailAccesPage() {
         return;
       }
 
-      // retire de l'écran
-      setUsers((prev) => prev.filter((u) => u.email !== user.email));
-
-      setAccessMap((prev) => {
-        const next = { ...prev };
-        delete next[user.email];
-        return next;
-      });
+      loadData();
 
     } catch (error) {
       console.error("Erreur suppression :", error);
