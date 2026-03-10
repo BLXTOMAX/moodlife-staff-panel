@@ -9,14 +9,14 @@ import {
   ShieldAlert,
   Trash2,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type MailEntry = {
   id: number;
   email: string;
-  createdAt: string;
+  created_at: string;
 };
 
-const STORAGE_KEY = "moodlife-suicide-mails";
 const GOOGLE_FORM_URL =
   "https://docs.google.com/forms/d/1-do2eDUT2NaGm6M2Dfeo3emzioXC9_ZUI1AR73dPf6Q/edit?ts=6997074b#response=ACYDBNjJJSdt9HPUf-cnAgsjnAJcB3y5-tdsSEcTZ-pYDCKpuOjp4irIDPPe0Ua4E_gSAsU";
 
@@ -61,30 +61,33 @@ export default function MailPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
+  async function loadEntries() {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setEntries(JSON.parse(saved));
+      const { data, error } = await supabase
+        .from("suicide_rp_mails")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Erreur chargement mails :", error);
+        setMessage("Impossible de charger les adresses mail.");
+        return;
       }
+
+      setEntries((data || []) as MailEntry[]);
     } catch (error) {
-      console.error("Erreur lecture localStorage :", error);
+      console.error("Erreur chargement mails :", error);
+      setMessage("Erreur serveur.");
     } finally {
       setIsLoaded(true);
     }
-  }, []);
+  }
 
   useEffect(() => {
-    if (!isLoaded) return;
+    loadEntries();
+  }, []);
 
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    } catch (error) {
-      console.error("Erreur écriture localStorage :", error);
-    }
-  }, [entries, isLoaded]);
-
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMessage("");
 
@@ -101,29 +104,40 @@ export default function MailPage() {
       return;
     }
 
-    const alreadyExists = entries.some(
-      (entry) => entry.email.toLowerCase() === cleanEmail
-    );
+    const { error } = await supabase
+      .from("suicide_rp_mails")
+      .insert([{ email: cleanEmail }]);
 
-    if (alreadyExists) {
-      setMessage("Cette adresse mail est déjà enregistrée.");
+    if (error) {
+      console.error("Erreur ajout mail :", error);
+
+      if (error.message?.toLowerCase().includes("duplicate")) {
+        setMessage("Cette adresse mail est déjà enregistrée.");
+      } else {
+        setMessage("Impossible d’enregistrer cette adresse mail.");
+      }
       return;
     }
 
-    const newEntry: MailEntry = {
-      id: Date.now(),
-      email: cleanEmail,
-      createdAt: new Date().toISOString(),
-    };
-
-    setEntries((prev) => [newEntry, ...prev]);
     setEmail("");
     setMessage("Adresse mail enregistrée avec succès.");
+    await loadEntries();
   }
 
-  function handleDelete(id: number) {
-    setEntries((prev) => prev.filter((entry) => entry.id !== id));
+  async function handleDelete(id: number) {
+    const { error } = await supabase
+      .from("suicide_rp_mails")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Erreur suppression mail :", error);
+      setMessage("Impossible de supprimer cette adresse mail.");
+      return;
+    }
+
     setMessage("Adresse mail supprimée. L’accès au Google Form est retiré.");
+    await loadEntries();
   }
 
   const filteredEntries = useMemo(() => {
@@ -164,7 +178,7 @@ export default function MailPage() {
 
           <p className="mt-4 max-w-3xl text-sm leading-7 text-white/82">
             Pour accéder au Google Form de Suicide RP, l’adresse mail doit être
-            enregistrée. Si elle est supprimée, l’accès au formulaire est retiré.
+            enregistrée. Cette liste est maintenant synchronisée pour tout le staff.
           </p>
         </div>
       </section>
@@ -245,95 +259,82 @@ export default function MailPage() {
             </div>
           )}
 
-          <div className="mt-6 rounded-[24px] border border-white/10 bg-black/25 p-4">
-            <p className="text-sm text-white/60">Accès Google Form</p>
-
-            <button
-              disabled={!hasAccess}
-              onClick={() => window.open(GOOGLE_FORM_URL, "_blank")}
-              className={`mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3 font-bold transition ${
-                hasAccess
-                  ? "bg-emerald-500 text-black hover:brightness-105"
-                  : "cursor-not-allowed bg-zinc-700 text-zinc-300"
-              }`}
-            >
-              <ExternalLink size={16} />
-              {hasAccess
-                ? "Accéder au Google Form"
-                : "Accès bloqué tant qu’aucun mail n’est enregistré"}
-            </button>
-          </div>
+          <a
+            href={GOOGLE_FORM_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-yellow-400/15 bg-yellow-400/10 px-5 py-3 text-sm font-semibold text-yellow-300 transition hover:bg-yellow-400/15"
+          >
+            <ExternalLink size={16} />
+            Ouvrir le Google Form
+          </a>
         </div>
 
         <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-                Historique
+                Liste
               </p>
-              <h2 className="mt-2 text-2xl font-black text-white">
+              <h2 className="mt-1 text-2xl font-black text-white">
                 Mails enregistrés
               </h2>
             </div>
 
-            <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/60">
-              {filteredEntries.length} mail
-              {filteredEntries.length > 1 ? "s" : ""}
-            </span>
+            <div className="relative w-full max-w-sm">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+              <input
+                type="text"
+                placeholder="Rechercher un mail..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/35 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
+              />
+            </div>
           </div>
 
-          <div className="relative mt-5">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
-
-            <input
-              type="text"
-              placeholder="Rechercher un mail"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-black/35 py-3 pl-11 pr-4 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
-            />
-          </div>
-
-          <div className="mt-5 space-y-3">
+          <div className="mt-6 space-y-4">
             {!isLoaded ? (
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white/55">
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
                 Chargement...
               </div>
-            ) : filteredEntries.length > 0 ? (
+            ) : filteredEntries.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
+                Aucun mail enregistré.
+              </div>
+            ) : (
               filteredEntries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="rounded-[24px] border border-white/10 bg-black/25 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.18)] transition hover:border-yellow-400/20 hover:bg-black/30"
+                  className="rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)]"
                 >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Mail size={16} className="mt-0.5 shrink-0 text-yellow-400" />
-                        <p className="break-all text-sm font-medium text-white">
-                          {entry.email}
-                        </p>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/10 p-3 text-yellow-300">
+                        <Mail className="h-5 w-5" />
                       </div>
 
-                      <p className="mt-2 text-xs text-white/45">
-                        Ajouté le {formatDate(entry.createdAt)}
-                      </p>
+                      <div>
+                        <p className="text-lg font-bold text-white">
+                          {entry.email}
+                        </p>
+                        <p className="mt-1 text-xs text-white/45">
+                          Ajouté le {formatDate(entry.created_at)}
+                        </p>
+                      </div>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => handleDelete(entry.id)}
-                      className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-500/15"
+                      className="inline-flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15"
                     >
-                      <Trash2 size={14} />
-                      Enlever
+                      <Trash2 size={16} />
+                      Supprimer
                     </button>
                   </div>
                 </div>
               ))
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white/55">
-                Aucun mail enregistré.
-              </div>
             )}
           </div>
         </div>

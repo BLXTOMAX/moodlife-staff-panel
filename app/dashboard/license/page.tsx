@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BadgeCheck, Plus, Search, Shield, User, Wallet } from "lucide-react";
+import { Plus, Search, Shield, Trash2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 type LicenseEntry = {
   id: number;
   license: string;
-  boutiqueId: string;
-  discordName: string;
-  createdAt: string;
+  boutique_id: string;
+  discord_name: string;
+  created_at: string;
 };
 
-const STORAGE_KEY = "moodliferp-license-entries";
+function normalize(text: string) {
+  return text.toLowerCase().trim();
+}
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString("fr-FR", {
@@ -21,18 +24,11 @@ function formatDate(date: string) {
   });
 }
 
-function normalize(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
 function StatCard({
   label,
   value,
   description,
-  valueClassName = "text-white",
+  valueClassName = "text-yellow-300",
 }: {
   label: string;
   value: string | number;
@@ -51,76 +47,98 @@ function StatCard({
 }
 
 export default function LicensePage() {
-  const [isLoaded, setIsLoaded] = useState(false);
-
   const [form, setForm] = useState({
     license: "",
     boutiqueId: "",
     discordName: "",
   });
-
   const [search, setSearch] = useState("");
   const [entries, setEntries] = useState<LicenseEntry[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [message, setMessage] = useState("");
 
-  useEffect(() => {
+  async function loadEntries() {
     try {
-      const savedEntries = localStorage.getItem(STORAGE_KEY);
+      const { data, error } = await supabase
+        .from("license_entries")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      if (savedEntries) {
-        setEntries(JSON.parse(savedEntries));
+      if (error) {
+        console.error("Erreur chargement licences :", error);
+        setMessage("Impossible de charger les licences.");
+        return;
       }
+
+      setEntries((data || []) as LicenseEntry[]);
     } catch (error) {
-      console.error("Erreur lecture localStorage :", error);
+      console.error("Erreur chargement licences :", error);
+      setMessage("Erreur serveur.");
     } finally {
       setIsLoaded(true);
     }
-  }, []);
+  }
 
   useEffect(() => {
-    if (!isLoaded) return;
-
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    } catch (error) {
-      console.error("Erreur écriture localStorage :", error);
-    }
-  }, [entries, isLoaded]);
+    loadEntries();
+  }, []);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setMessage("");
 
     if (
       !form.license.trim() ||
       !form.boutiqueId.trim() ||
       !form.discordName.trim()
     ) {
+      setMessage("Merci de remplir les 3 champs.");
       return;
     }
 
-    const newEntry: LicenseEntry = {
-      id: Date.now(),
+    const payload = {
       license: form.license.trim(),
-      boutiqueId: form.boutiqueId.trim(),
-      discordName: form.discordName.trim(),
-      createdAt: new Date().toISOString(),
+      boutique_id: form.boutiqueId.trim(),
+      discord_name: form.discordName.trim(),
     };
 
-    setEntries((prev) => [newEntry, ...prev]);
+    const { error } = await supabase.from("license_entries").insert([payload]);
+
+    if (error) {
+      console.error("Erreur ajout licence :", error);
+      setMessage("Impossible d’ajouter la licence.");
+      return;
+    }
 
     setForm({
       license: "",
       boutiqueId: "",
       discordName: "",
     });
+
+    setMessage("Licence ajoutée avec succès.");
+    await loadEntries();
   }
 
-  function handleDelete(id: number) {
-    setEntries((prev) => prev.filter((entry) => entry.id !== id));
+  async function handleDelete(id: number) {
+    const { error } = await supabase
+      .from("license_entries")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Erreur suppression licence :", error);
+      setMessage("Impossible de supprimer la licence.");
+      return;
+    }
+
+    setMessage("Licence supprimée.");
+    await loadEntries();
   }
 
   const filteredEntries = useMemo(() => {
@@ -130,7 +148,7 @@ export default function LicensePage() {
 
     return entries.filter((entry) =>
       normalize(
-        `${entry.license} ${entry.boutiqueId} ${entry.discordName}`
+        `${entry.license} ${entry.boutique_id} ${entry.discord_name}`
       ).includes(q)
     );
   }, [entries, search]);
@@ -139,7 +157,7 @@ export default function LicensePage() {
     return {
       total: entries.length,
       visible: filteredEntries.length,
-      loaded: isLoaded ? "Active" : "Chargement",
+      loaded: isLoaded ? "Synchronisée" : "Chargement",
     };
   }, [entries.length, filteredEntries.length, isLoaded]);
 
@@ -162,8 +180,8 @@ export default function LicensePage() {
           <div className="mt-4 h-px w-40 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
 
           <p className="mt-4 max-w-4xl text-sm leading-7 text-white/82">
-            Ajoutez une licence, un ID boutique et un nom Discord. Les entrées
-            restent enregistrées après actualisation de la page.
+            Ajoutez une licence, un ID boutique et un nom Discord. Toutes les
+            entrées sont désormais synchronisées pour tout le staff.
           </p>
         </div>
       </div>
@@ -183,7 +201,7 @@ export default function LicensePage() {
         <StatCard
           label="Sauvegarde"
           value={stats.loaded}
-          description="Les données sont conservées localement après actualisation."
+          description="Les données sont partagées entre tous les comptes."
           valueClassName={isLoaded ? "text-emerald-300" : "text-yellow-300"}
         />
       </div>
@@ -219,14 +237,13 @@ export default function LicensePage() {
                 name="license"
                 value={form.license}
                 onChange={handleChange}
-                placeholder="Ex : license:xxxxxxxxxxxxxxxx"
-                className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
+                placeholder="license:xxxxxxxx"
+                className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
               />
             </div>
 
             <div>
-              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-white/90">
-                <Wallet className="h-4 w-4 text-yellow-300" />
+              <label className="mb-2 block text-sm font-medium text-white/90">
                 ID boutique
               </label>
               <input
@@ -234,14 +251,13 @@ export default function LicensePage() {
                 name="boutiqueId"
                 value={form.boutiqueId}
                 onChange={handleChange}
-                placeholder="Ex : 45821"
-                className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
+                placeholder="Boutique ID"
+                className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
               />
             </div>
 
             <div>
-              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-white/90">
-                <User className="h-4 w-4 text-yellow-300" />
+              <label className="mb-2 block text-sm font-medium text-white/90">
                 Nom Discord
               </label>
               <input
@@ -249,110 +265,114 @@ export default function LicensePage() {
                 name="discordName"
                 value={form.discordName}
                 onChange={handleChange}
-                placeholder="Ex : Pariss_"
-                className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
+                placeholder="Pseudo Discord"
+                className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
               />
             </div>
 
             <button
               type="submit"
-              className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-bold text-black transition hover:brightness-105"
+              className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 font-bold text-black transition hover:brightness-105"
             >
-              <Plus className="h-4 w-4" />
-              Ajouter à la liste
+              <Plus size={16} />
+              Enregistrer la licence
             </button>
           </form>
+
+          {message && (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/80">
+              {message}
+            </div>
+          )}
         </div>
 
         <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-                Liste
+                Historique
               </p>
               <h2 className="mt-1 text-2xl font-black text-white">
                 Licences enregistrées
               </h2>
             </div>
 
-            <div className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/65">
-              {filteredEntries.length} entrée
-              {filteredEntries.length > 1 ? "s" : ""}
+            <div className="relative w-full max-w-sm">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+              <input
+                type="text"
+                placeholder="Rechercher..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/35 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
+              />
             </div>
           </div>
 
-          <div className="relative mt-5">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-            <input
-              type="text"
-              placeholder="Rechercher une licence, un ID boutique, un nom Discord..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-2xl border border-yellow-400/15 bg-[#0b0b0b]/90 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-yellow-400/35 focus:bg-[#111111]"
-            />
-          </div>
-
-          <div className="mt-5 space-y-3">
+          <div className="mt-6 space-y-4">
             {!isLoaded ? (
               <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
                 Chargement...
               </div>
-            ) : filteredEntries.length > 0 ? (
+            ) : filteredEntries.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
+                Aucune licence trouvée.
+              </div>
+            ) : (
               filteredEntries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="rounded-[24px] border border-yellow-400/15 bg-[#151515]/92 p-5 shadow-[0_8px_22px_rgba(0,0,0,0.28)] transition duration-300 hover:border-yellow-400/30 hover:bg-[#1b1b1b]"
+                  className="rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)]"
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <BadgeCheck className="h-4 w-4 shrink-0 text-yellow-300" />
-                        <p className="text-sm font-semibold text-white">
-                          {entry.discordName}
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
+                          Licence
+                        </p>
+                        <p className="mt-1 break-all text-lg font-bold text-white">
+                          {entry.license}
                         </p>
                       </div>
 
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <div className="rounded-xl border border-white/10 bg-black/25 p-3">
-                          <p className="text-[11px] uppercase tracking-[0.2em] text-yellow-300/80">
-                            Licence
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-white/45">
+                            ID boutique
                           </p>
-                          <p className="mt-2 break-all text-sm leading-6 text-white/85">
-                            {entry.license}
+                          <p className="mt-1 text-sm text-white/85">
+                            {entry.boutique_id}
                           </p>
                         </div>
 
-                        <div className="rounded-xl border border-white/10 bg-black/25 p-3">
-                          <p className="text-[11px] uppercase tracking-[0.2em] text-yellow-300/80">
-                            ID boutique
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-white/45">
+                            Discord
                           </p>
-                          <p className="mt-2 text-sm text-white/85">
-                            {entry.boutiqueId}
+                          <p className="mt-1 text-sm text-white/85">
+                            {entry.discord_name}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex shrink-0 flex-col items-start gap-2 lg:items-end">
-                      <div className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/55">
-                        {formatDate(entry.createdAt)}
-                      </div>
+                    <div className="flex items-center gap-3">
+                      <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/65">
+                        {formatDate(entry.created_at)}
+                      </span>
 
                       <button
                         type="button"
                         onClick={() => handleDelete(entry.id)}
-                        className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-500/15"
+                        className="inline-flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15"
                       >
+                        <Trash2 size={16} />
                         Supprimer
                       </button>
                     </div>
                   </div>
                 </div>
               ))
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
-                Aucune entrée trouvée.
-              </div>
             )}
           </div>
         </div>
