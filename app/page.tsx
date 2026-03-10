@@ -1,5 +1,9 @@
-import { redirect } from "next/navigation";
+import ServerLiveCard from "@/components/server-live-card";
 
-export default function Home() {
-  redirect("/login");
+export default function Page() {
+  return (
+    <main>
+      <ServerLiveCard />
+    </main>
+  );
 }
