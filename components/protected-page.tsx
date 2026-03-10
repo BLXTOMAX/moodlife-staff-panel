@@ -20,6 +20,9 @@ export default function ProtectedPage({
     const checkAccess = async () => {
       const email = getSessionEmail();
 
+console.log("ProtectedPage email =", email);
+console.log("ProtectedPage permission =", permission);
+
       console.log("ProtectedPage email:", email);
       console.log("ProtectedPage permission:", permission);
 
@@ -30,7 +33,10 @@ export default function ProtectedPage({
       }
 
       const owner = isOwner(email);
-      const permitted = owner || (await hasPermission(permission));
+const permitted = owner || (await hasPermission(permission));
+
+console.log("ProtectedPage owner =", owner);
+console.log("ProtectedPage permitted =", permitted);
 
       console.log("ProtectedPage owner:", owner);
       console.log("ProtectedPage permitted:", permitted);

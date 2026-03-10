@@ -36,15 +36,23 @@ export default function LoginPage() {
 
       const result = await response.json();
 
-      if (!response.ok || !result?.success) {
-        alert(result?.message || "Identifiants invalides.");
-        return;
-      }
+console.log("LOGIN STATUS", response.status);
+console.log("LOGIN RESULT", result);
 
-      localStorage.setItem("moodlife-session-email", normalizedEmail);
-      localStorage.removeItem("moodlife-email");
+if (!response.ok || !result?.success) {
+  alert(result?.message || "Identifiants invalides.");
+  return;
+}
 
-      window.location.href = "/dashboard/info";
+localStorage.setItem("moodlife-session-email", normalizedEmail);
+localStorage.removeItem("moodlife-email");
+
+console.log(
+  "STORED EMAIL",
+  localStorage.getItem("moodlife-session-email")
+);
+
+window.location.href = "/dashboard/info";
     } catch (error) {
       console.error("Erreur login :", error);
       alert("Une erreur est survenue.");
