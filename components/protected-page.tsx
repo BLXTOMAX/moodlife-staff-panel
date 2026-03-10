@@ -21,10 +21,10 @@ export default function ProtectedPage({
       const email = getSessionEmail();
 
       if (!email) {
-        if (mounted) setAllowed(false);
-        router.replace("/login");
-        return;
-      }
+  if (mounted) setAllowed(false);
+  router.replace("/login");
+  return;
+}
 
       const owner = isOwner(email);
       const permitted = owner || (await hasPermission(permission));

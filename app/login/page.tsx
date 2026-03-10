@@ -10,7 +10,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
     if (!email || !password) {
       alert("Remplis tous les champs");
       return;
@@ -49,7 +51,7 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-4">
@@ -69,7 +71,7 @@ export default function LoginPage() {
           <div className="mx-auto mt-4 h-px w-32 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
         </div>
 
-        <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="email"
             placeholder="Adresse mail"
@@ -83,22 +85,17 @@ export default function LoginPage() {
             placeholder="Mot de passe"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !loading) {
-                handleLogin();
-              }
-            }}
             className="w-full rounded-2xl border border-yellow-400/15 bg-black/50 px-4 py-4 text-white outline-none transition placeholder:text-white/35 focus:border-yellow-400/35"
           />
 
           <button
-            onClick={handleLogin}
+            type="submit"
             disabled={loading}
             className="w-full rounded-2xl bg-yellow-400 px-4 py-4 font-bold text-black transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? "Connexion..." : "Se connecter"}
           </button>
-        </div>
+        </form>
       </div>
     </main>
   );
