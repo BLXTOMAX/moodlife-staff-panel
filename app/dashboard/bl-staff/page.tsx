@@ -7,6 +7,7 @@ type BLRow = {
   id: number;
   pseudo: string;
   discord: string;
+  license: string;
   commentaire: string;
   date: string;
   ajoute_par: string;
@@ -54,6 +55,7 @@ export default function BLStaffPage() {
 
     const cleanedRows = ((data || []) as BLRow[]).map((row) => ({
       ...row,
+      license: row.license || "",
       isNew: false,
     }));
 
@@ -69,6 +71,7 @@ export default function BLStaffPage() {
       id: -Date.now() - Math.floor(Math.random() * 1000),
       pseudo: "",
       discord: "",
+      license: "",
       commentaire: "",
       date: today,
       ajoute_par: "",
@@ -123,6 +126,7 @@ export default function BLStaffPage() {
         const payload = {
           pseudo: row.pseudo,
           discord: row.discord,
+          license: row.license,
           commentaire: row.commentaire,
           date: row.date,
           ajoute_par: row.ajoute_par,
@@ -190,8 +194,8 @@ export default function BLStaffPage() {
             <div className="mt-4 h-px w-44 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-white/72">
-              Liste des staffs blacklistés avec leur pseudo, Discord, commentaire,
-              date et auteur de l’ajout.
+              Liste des staffs blacklistés avec leur pseudo, Discord, License,
+              commentaire, date et auteur de l’ajout.
             </p>
           </div>
 
@@ -239,9 +243,10 @@ export default function BLStaffPage() {
 
       <div className="px-6 pb-10">
         <div className="overflow-hidden rounded-[26px] border border-yellow-500/20 bg-[#050505] shadow-[0_0_40px_rgba(255,200,0,0.06)]">
-          <div className="hidden grid-cols-6 gap-4 border-b border-yellow-500/15 bg-[linear-gradient(135deg,rgba(26,18,0,0.95),rgba(6,6,6,0.98))] px-4 py-4 text-sm font-bold uppercase text-yellow-400 lg:grid">
+          <div className="hidden grid-cols-7 gap-4 border-b border-yellow-500/15 bg-[linear-gradient(135deg,rgba(26,18,0,0.95),rgba(6,6,6,0.98))] px-4 py-4 text-sm font-bold uppercase text-yellow-400 lg:grid">
             <div>Pseudo</div>
             <div>Discord</div>
+            <div>License</div>
             <div>Commentaire</div>
             <div>Date</div>
             <div>Staff qui ajoute</div>
@@ -259,8 +264,10 @@ export default function BLStaffPage() {
               {rows.map((row) => (
                 <div
                   key={row.id}
-                  className={`grid grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-6 ${
-                    row.isNew ? "ring-1 ring-yellow-500/20 bg-yellow-500/[0.03]" : "bg-gradient-to-r from-yellow-950/10 via-transparent to-yellow-900/5"
+                  className={`grid grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-7 ${
+                    row.isNew
+                      ? "ring-1 ring-yellow-500/20 bg-yellow-500/[0.03]"
+                      : "bg-gradient-to-r from-yellow-950/10 via-transparent to-yellow-900/5"
                   }`}
                 >
                   <Field label="Pseudo">
@@ -277,6 +284,15 @@ export default function BLStaffPage() {
                       value={row.discord || ""}
                       onChange={(e) => updateRow(row.id, "discord", e.target.value)}
                       placeholder="Discord"
+                      className={inputClass}
+                    />
+                  </Field>
+
+                  <Field label="License">
+                    <input
+                      value={row.license || ""}
+                      onChange={(e) => updateRow(row.id, "license", e.target.value)}
+                      placeholder="License"
                       className={inputClass}
                     />
                   </Field>
