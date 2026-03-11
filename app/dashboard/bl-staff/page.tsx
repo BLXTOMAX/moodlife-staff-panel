@@ -183,7 +183,7 @@ export default function BLStaffPage() {
               {rows.map((row) => (
                 <div
                   key={row.id}
-                  className="grid grid-cols-1 gap-4 px-4 py-4 lg:grid-cols-6"
+                  className="grid grid-cols-1 gap-4 rounded-xl border border-yellow-500/10 bg-gradient-to-r from-yellow-950/10 via-transparent to-yellow-900/5 px-4 py-4 lg:grid-cols-6"
                 >
                   <Field label="Pseudo">
                     <input
@@ -237,7 +237,7 @@ export default function BLStaffPage() {
                   <Field label="Action">
                     <button
                       onClick={() => deleteRow(row.id)}
-                      className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
+                      className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 shadow-[0_0_20px_rgba(255,0,0,0.08)] transition hover:bg-red-900/60"
                     >
                       Suppr.
                     </button>
@@ -261,13 +261,20 @@ function StatCard({
   value?: string;
   valueText?: string;
 }) {
+  const color =
+    title.includes("mois")
+      ? "from-[#081018] via-[#102038] to-[#080808] border-blue-500/20 text-blue-300"
+      : title.includes("Utilisation")
+      ? "from-[#081208] via-[#102a14] to-[#080808] border-green-500/20 text-green-300"
+      : "from-[#080808] via-[#221600] to-[#080808] border-yellow-500/20 text-yellow-300";
+
   return (
-    <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-r from-[#080808] via-[#120d00] to-[#080808] p-5">
+    <div className={`rounded-2xl border bg-gradient-to-r p-5 ${color}`}>
       <p className="text-sm font-semibold text-gray-300">{title}</p>
       {valueText ? (
-        <p className="mt-4 text-sm text-gray-400">{valueText}</p>
+        <p className="mt-4 text-sm text-gray-300">{valueText}</p>
       ) : (
-        <p className="mt-3 text-4xl font-extrabold text-yellow-400">{value}</p>
+        <p className="mt-3 text-4xl font-extrabold">{value}</p>
       )}
     </div>
   );
@@ -291,4 +298,4 @@ function Field({
 }
 
 const inputClass =
-  "w-full rounded-xl border border-yellow-500/20 bg-black px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-yellow-400/60";
+  "w-full rounded-xl border border-yellow-500/20 bg-[#090909] px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-yellow-400/60 shadow-[0_0_20px_rgba(255,200,0,0.04)]";

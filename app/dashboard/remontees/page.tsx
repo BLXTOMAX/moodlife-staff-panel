@@ -198,7 +198,11 @@ export default function RemonteesPage() {
               {rows.map((row) => (
                 <div
                   key={row.id}
-                  className="grid grid-cols-1 gap-4 px-4 py-4 xl:grid-cols-7"
+                  className={`grid grid-cols-1 gap-4 px-4 py-4 xl:grid-cols-7 rounded-xl ${
+  normalizeType(row.type) === "positive"
+    ? "bg-green-950/10"
+    : "bg-red-950/10"
+}`}
                 >
                   <Field label="Nom">
                     <input
@@ -226,11 +230,11 @@ export default function RemonteesPage() {
                     <select
                       value={displayType(row.type)}
                       onChange={(e) => updateRow(row.id, "type", e.target.value)}
-                      className={`${inputClass} ${
-                        normalizeType(row.type) === "positive"
-                          ? "border-green-500/40 text-green-300"
-                          : "border-red-500/40 text-red-300"
-                      }`}
+                      className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition placeholder:text-gray-500 focus:border-yellow-400/60 ${
+  normalizeType(row.type) === "positive"
+    ? "border-green-500/40 bg-green-950/20 text-green-300"
+    : "border-red-500/40 bg-red-950/20 text-red-300"
+}`}
                     >
                       <option value="Négative">Négative</option>
                       <option value="Positive">Positive</option>
@@ -305,10 +309,19 @@ function displayType(value: string) {
 }
 
 function StatCard({ title, value }: { title: string; value: string }) {
+  const color =
+    title.includes("négatives")
+      ? "from-[#120808] via-[#2a0f0f] to-[#080808] border-red-500/20 text-red-300"
+      : title.includes("positives")
+      ? "from-[#081208] via-[#102a14] to-[#080808] border-green-500/20 text-green-300"
+      : title.includes("prévenus")
+      ? "from-[#081018] via-[#102038] to-[#080808] border-blue-500/20 text-blue-300"
+      : "from-[#080808] via-[#221600] to-[#080808] border-yellow-500/20 text-yellow-300";
+
   return (
-    <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-r from-[#080808] via-[#120d00] to-[#080808] p-5">
+    <div className={`rounded-2xl border bg-gradient-to-r p-5 ${color}`}>
       <p className="text-sm font-semibold text-gray-300">{title}</p>
-      <p className="mt-3 text-4xl font-extrabold text-yellow-400">{value}</p>
+      <p className="mt-3 text-4xl font-extrabold">{value}</p>
     </div>
   );
 }
@@ -331,4 +344,4 @@ function Field({
 }
 
 const inputClass =
-  "w-full rounded-xl border border-yellow-500/20 bg-black px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-yellow-400/60";
+  "w-full rounded-xl border border-yellow-500/20 bg-[#090909] px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-yellow-400/60 shadow-[0_0_20px_rgba(255,200,0,0.04)]";

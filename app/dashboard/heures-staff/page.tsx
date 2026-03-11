@@ -15,13 +15,20 @@ type HeuresRow = {
   vendredi: string;
   samedi: string;
   dimanche: string;
-  reports: string;
+  reports_lundi: string;
+  reports_mardi: string;
+  reports_mercredi: string;
+  reports_jeudi: string;
+  reports_vendredi: string;
+  reports_samedi: string;
+  reports_dimanche: string;
+  total_reports: number;
   total_heures: string;
   paye: number;
   auteur: string;
 };
 
-const DAYS: Array<keyof HeuresRow> = [
+const HOUR_DAYS: Array<keyof HeuresRow> = [
   "lundi",
   "mardi",
   "mercredi",
@@ -29,6 +36,16 @@ const DAYS: Array<keyof HeuresRow> = [
   "vendredi",
   "samedi",
   "dimanche",
+];
+
+const REPORT_DAYS: Array<keyof HeuresRow> = [
+  "reports_lundi",
+  "reports_mardi",
+  "reports_mercredi",
+  "reports_jeudi",
+  "reports_vendredi",
+  "reports_samedi",
+  "reports_dimanche",
 ];
 
 const ROLE_ORDER = [
@@ -47,7 +64,7 @@ export default function HeuresStaffPage() {
     loadRows();
 
     const channel = supabase
-      .channel("heures-staff-live")
+      .channel("heures-staff-live-v2")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "heures_staff" },
@@ -92,7 +109,14 @@ export default function HeuresStaffPage() {
       vendredi: "",
       samedi: "",
       dimanche: "",
-      reports: "0",
+      reports_lundi: "",
+      reports_mardi: "",
+      reports_mercredi: "",
+      reports_jeudi: "",
+      reports_vendredi: "",
+      reports_samedi: "",
+      reports_dimanche: "",
+      total_reports: 0,
       total_heures: "0h00",
       paye: 0,
       auteur: "",
@@ -130,11 +154,13 @@ export default function HeuresStaffPage() {
 
     const totalMinutes = computeTotalMinutes(nextRow);
     const totalFormatted = formatMinutes(totalMinutes);
+    const totalReports = computeTotalReports(nextRow);
     const paye = computePaye(nextRow.role, nextRow.staff, totalMinutes);
 
     const payload = {
       [field]: value,
       total_heures: totalFormatted,
+      total_reports: totalReports,
       paye,
     };
 
@@ -145,6 +171,7 @@ export default function HeuresStaffPage() {
               ...row,
               [field]: value,
               total_heures: totalFormatted,
+              total_reports: totalReports,
               paye,
             }
           : row
@@ -177,12 +204,8 @@ export default function HeuresStaffPage() {
     () => rows.reduce((acc, row) => acc + computeTotalMinutes(row), 0),
     [rows]
   );
-  const totalReports = useMemo(
-    () =>
-      rows.reduce((acc, row) => {
-        const n = Number(String(row.reports || "0").replace(",", "."));
-        return acc + (Number.isNaN(n) ? 0 : n);
-      }, 0),
+  const totalReportsGlobal = useMemo(
+    () => rows.reduce((acc, row) => acc + computeTotalReports(row), 0),
     [rows]
   );
 
@@ -207,34 +230,36 @@ export default function HeuresStaffPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="border-b border-yellow-500/15 bg-gradient-to-r from-black via-[#1a1200] to-black">
+      <div className="border-b border-yellow-500/15 bg-gradient-to-r from-black via-[#221600] to-black">
         <div className="flex flex-col gap-5 px-6 py-8 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.35em] text-yellow-500/80">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.35em] text-yellow-400/80">
               Gestion staff
             </p>
-            <h1 className="text-4xl font-extrabold">Tableau des heures et reports</h1>
-            <p className="mt-3 max-w-4xl text-sm text-gray-400">
-              Gère les heures jour par jour, les reports, le rôle du staff et la
-              paye automatique. Si le total est inférieur à 10h, la paye reste à 0.
+            <h1 className="text-4xl font-extrabold text-white">
+              Tableau des heures et reports
+            </h1>
+            <p className="mt-3 max-w-4xl text-sm text-gray-300">
+              Gère les heures jour par jour, les reports journaliers, le rôle du
+              staff, le total automatique et la paye.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-400">
+            <div className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300">
               Semaine du {semaineAffichee}
             </div>
 
             <button
               onClick={() => addRow("Modérateur")}
-              className="rounded-2xl bg-yellow-400 px-5 py-3 font-bold text-black transition hover:opacity-90"
+              className="rounded-2xl bg-yellow-400 px-5 py-3 font-bold text-black transition hover:scale-[1.02]"
             >
               + Ajouter une ligne
             </button>
 
             <button
               onClick={clearAll}
-              className="rounded-2xl border border-red-800 bg-red-950/60 px-5 py-3 font-bold text-red-300 transition hover:bg-red-900/60"
+              className="rounded-2xl border border-red-700 bg-red-950/60 px-5 py-3 font-bold text-red-300 transition hover:bg-red-900/60"
             >
               Tout vider
             </button>
@@ -242,10 +267,11 @@ export default function HeuresStaffPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 px-6 py-6 md:grid-cols-3">
-        <StatCard title="Staff" value={String(totalStaff)} />
-        <StatCard title="Heures totales" value={formatMinutes(totalMinutes)} />
-        <StatCard title="Reports totaux" value={String(totalReports)} />
+      <div className="grid gap-4 px-6 py-6 md:grid-cols-4">
+        <StatCard title="Staff" value={String(totalStaff)} tone="yellow" />
+        <StatCard title="Heures totales" value={formatMinutes(totalMinutes)} tone="green" />
+        <StatCard title="Reports totaux" value={String(totalReportsGlobal)} tone="blue" />
+        <StatCard title="Semaine" value={semaineAffichee} tone="purple" />
       </div>
 
       <div className="space-y-6 px-6 pb-10">
@@ -260,14 +286,14 @@ export default function HeuresStaffPage() {
             return (
               <div
                 key={role}
-                className="overflow-hidden rounded-2xl border border-yellow-500/20 bg-[#050505] shadow-[0_0_40px_rgba(255,200,0,0.05)]"
+                className="overflow-hidden rounded-2xl border border-yellow-500/20 bg-[#050505] shadow-[0_0_40px_rgba(255,200,0,0.08)]"
               >
-                <div className="flex flex-col gap-4 border-b border-yellow-500/15 bg-gradient-to-r from-[#120d00] to-[#060606] px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-col gap-4 border-b border-yellow-500/15 bg-gradient-to-r from-[#1b1200] via-[#2a1b00] to-[#0a0a0a] px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <h2 className="text-xl font-extrabold uppercase tracking-[0.25em] text-yellow-400">
+                    <h2 className="text-xl font-extrabold uppercase tracking-[0.25em] text-yellow-300">
                       {role}
                     </h2>
-                    <p className="mt-1 text-sm text-gray-400">
+                    <p className="mt-1 text-sm text-gray-300">
                       {group.length} staff{group.length > 1 ? "s" : ""} dans cette catégorie
                     </p>
                   </div>
@@ -281,20 +307,29 @@ export default function HeuresStaffPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <div className="min-w-[1700px]">
-                    <div className="grid grid-cols-[260px_170px_repeat(7,110px)_120px_130px_130px_120px] gap-3 border-b border-yellow-500/10 px-4 py-4 text-sm font-bold uppercase text-yellow-400">
+                  <div className="min-w-[2500px]">
+                    <div className="grid grid-cols-[260px_170px_repeat(7,110px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 border-b border-yellow-500/10 bg-[#0b0b0b] px-4 py-4 text-xs font-bold uppercase text-yellow-300">
                       <div>Nom du staff</div>
                       <div>Semaine</div>
-                      <div>Lundi</div>
-                      <div>Mardi</div>
-                      <div>Mercredi</div>
-                      <div>Jeudi</div>
-                      <div>Vendredi</div>
-                      <div>Samedi</div>
-                      <div>Dimanche</div>
-                      <div>Reports</div>
-                      <div>Total heures</div>
-                      <div>Paye staff</div>
+                      <div>Lun h</div>
+                      <div>Mar h</div>
+                      <div>Mer h</div>
+                      <div>Jeu h</div>
+                      <div>Ven h</div>
+                      <div>Sam h</div>
+                      <div>Dim h</div>
+
+                      <div>R lun</div>
+                      <div>R mar</div>
+                      <div>R mer</div>
+                      <div>R jeu</div>
+                      <div>R ven</div>
+                      <div>R sam</div>
+                      <div>R dim</div>
+
+                      <div>Total rep</div>
+                      <div>Total h</div>
+                      <div>Paye</div>
                       <div>Auteur</div>
                       <div>Action</div>
                     </div>
@@ -307,98 +342,53 @@ export default function HeuresStaffPage() {
                       <div className="divide-y divide-yellow-500/10">
                         {group.map((row) => {
                           const totalMinutesRow = computeTotalMinutes(row);
+                          const totalReportsRow = computeTotalReports(row);
                           const paye = computePaye(row.role, row.staff, totalMinutesRow);
 
                           return (
                             <div
                               key={row.id}
-                              className="grid grid-cols-[260px_170px_repeat(7,110px)_120px_130px_130px_120px] gap-3 px-4 py-4"
+                              className="grid grid-cols-[260px_170px_repeat(7,110px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4"
                             >
                               <input
                                 value={row.staff || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "staff", e.target.value)
-                                }
+                                onChange={(e) => updateRow(row.id, "staff", e.target.value)}
                                 placeholder="Nom du staff"
-                                className={inputClass}
+                                className={`${inputClass} border-yellow-500/30`}
                               />
 
                               <input
                                 value={row.semaine || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "semaine", e.target.value)
-                                }
+                                onChange={(e) => updateRow(row.id, "semaine", e.target.value)}
                                 placeholder="01/03 au 15/03"
-                                className={inputClass}
+                                className={`${inputClass} border-yellow-500/30`}
                               />
 
-                              <input
-                                value={row.lundi || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "lundi", e.target.value)
-                                }
-                                placeholder="2h30"
-                                className={inputClass}
-                              />
-                              <input
-                                value={row.mardi || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "mardi", e.target.value)
-                                }
-                                placeholder="0"
-                                className={inputClass}
-                              />
-                              <input
-                                value={row.mercredi || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "mercredi", e.target.value)
-                                }
-                                placeholder="1h20"
-                                className={inputClass}
-                              />
-                              <input
-                                value={row.jeudi || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "jeudi", e.target.value)
-                                }
-                                placeholder="IMPREVU"
-                                className={inputClass}
-                              />
-                              <input
-                                value={row.vendredi || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "vendredi", e.target.value)
-                                }
-                                placeholder="3h10"
-                                className={inputClass}
-                              />
-                              <input
-                                value={row.samedi || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "samedi", e.target.value)
-                                }
-                                placeholder="4h00"
-                                className={inputClass}
-                              />
-                              <input
-                                value={row.dimanche || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "dimanche", e.target.value)
-                                }
-                                placeholder="0"
-                                className={inputClass}
-                              />
+                              {HOUR_DAYS.map((day) => (
+                                <input
+                                  key={String(day)}
+                                  value={String(row[day] || "")}
+                                  onChange={(e) => updateRow(row.id, day, e.target.value)}
+                                  placeholder="2h30"
+                                  className={`${inputClass} border-green-500/30 bg-green-950/10`}
+                                />
+                              ))}
 
-                              <input
-                                value={row.reports || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "reports", e.target.value)
-                                }
-                                placeholder="0"
-                                className={inputClass}
-                              />
+                              {REPORT_DAYS.map((day) => (
+                                <input
+                                  key={String(day)}
+                                  value={String(row[day] || "")}
+                                  onChange={(e) => updateRow(row.id, day, e.target.value)}
+                                  placeholder="0"
+                                  className={`${inputClass} border-blue-500/30 bg-blue-950/10`}
+                                />
+                              ))}
 
-                              <div className="flex items-center rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 font-bold text-yellow-300">
+                              <div className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 font-extrabold text-blue-300">
+                                {totalReportsRow}
+                              </div>
+
+                              <div className="flex items-center justify-center rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 font-extrabold text-yellow-300">
                                 {formatMinutes(totalMinutesRow)}
                               </div>
 
@@ -414,11 +404,9 @@ export default function HeuresStaffPage() {
 
                               <input
                                 value={row.auteur || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "auteur", e.target.value)
-                                }
+                                onChange={(e) => updateRow(row.id, "auteur", e.target.value)}
                                 placeholder="Auteur"
-                                className={inputClass}
+                                className={`${inputClass} border-purple-500/30 bg-purple-950/10`}
                               />
 
                               <button
@@ -445,19 +433,27 @@ export default function HeuresStaffPage() {
 
 function normalizeRole(role: string) {
   const r = (role || "").toLowerCase().trim();
-
   if (r.includes("gérant")) return "Gérant-Staff";
   if (r.includes("gerant")) return "Gérant-Staff";
   if (r.includes("super")) return "Super-Administrateur";
   if (r.includes("admin")) return "Administrateur";
   if (r.includes("mod")) return "Modérateur";
   if (r.includes("help")) return "Helpeur";
-
   return "Modérateur";
 }
 
 function computeTotalMinutes(row: HeuresRow) {
-  return DAYS.reduce((acc, day) => acc + parseDurationToMinutes(String(row[day] || "")), 0);
+  return HOUR_DAYS.reduce(
+    (acc, day) => acc + parseDurationToMinutes(String(row[day] || "")),
+    0
+  );
+}
+
+function computeTotalReports(row: HeuresRow) {
+  return REPORT_DAYS.reduce((acc, day) => {
+    const n = Number(String(row[day] || "").replace(",", "."));
+    return acc + (Number.isNaN(n) ? 0 : n);
+  }, 0);
 }
 
 function parseDurationToMinutes(value: string) {
@@ -476,28 +472,16 @@ function parseDurationToMinutes(value: string) {
   }
 
   const colon = raw.match(/^(\d{1,2})\s*:\s*(\d{1,2})$/);
-  if (colon) {
-    const h = Number(colon[1]);
-    const m = Number(colon[2]);
-    return h * 60 + m;
-  }
+  if (colon) return Number(colon[1]) * 60 + Number(colon[2]);
 
   const withH = raw.match(/^(\d{1,2})\s*h\s*(\d{0,2})$/);
-  if (withH) {
-    const h = Number(withH[1] || "0");
-    const m = Number(withH[2] || "0");
-    return h * 60 + m;
-  }
+  if (withH) return Number(withH[1] || "0") * 60 + Number(withH[2] || "0");
 
   const minOnly = raw.match(/^(\d{1,3})\s*min$/);
-  if (minOnly) {
-    return Number(minOnly[1] || "0");
-  }
+  if (minOnly) return Number(minOnly[1] || "0");
 
   const decimal = Number(raw.replace(",", "."));
-  if (!Number.isNaN(decimal)) {
-    return Math.round(decimal * 60);
-  }
+  if (!Number.isNaN(decimal)) return Math.round(decimal * 60);
 
   return 0;
 }
@@ -513,8 +497,8 @@ function computePaye(role: string, staffName: string, totalMinutes: number) {
   if (totalMinutes < 600) return 0;
 
   const normalizedRole = normalizeRole(role);
-
   let base = 0;
+
   if (normalizedRole === "Modérateur") base = 600;
   if (normalizedRole === "Administrateur") base = 800;
   if (normalizedRole === "Super-Administrateur") base = 1200;
@@ -530,14 +514,29 @@ function computePaye(role: string, staffName: string, totalMinutes: number) {
   return base + (hasBonus ? 200 : 0);
 }
 
-function StatCard({ title, value }: { title: string; value: string }) {
+function StatCard({
+  title,
+  value,
+  tone,
+}: {
+  title: string;
+  value: string;
+  tone: "yellow" | "green" | "blue" | "purple";
+}) {
+  const tones = {
+    yellow: "border-yellow-500/20 from-[#080808] via-[#221600] to-[#080808] text-yellow-300",
+    green: "border-green-500/20 from-[#080808] via-[#0d1c12] to-[#080808] text-green-300",
+    blue: "border-blue-500/20 from-[#080808] via-[#0b1630] to-[#080808] text-blue-300",
+    purple: "border-purple-500/20 from-[#080808] via-[#1a1030] to-[#080808] text-purple-300",
+  };
+
   return (
-    <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-r from-[#080808] via-[#120d00] to-[#080808] p-5">
+    <div className={`rounded-2xl border bg-gradient-to-r p-5 ${tones[tone]}`}>
       <p className="text-sm font-semibold text-gray-300">{title}</p>
-      <p className="mt-3 text-4xl font-extrabold text-yellow-400">{value}</p>
+      <p className="mt-3 text-3xl font-extrabold">{value}</p>
     </div>
   );
 }
 
 const inputClass =
-  "w-full rounded-xl border border-yellow-500/20 bg-black px-3 py-3 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-yellow-400/60";
+  "w-full rounded-xl border bg-black px-3 py-3 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-yellow-400/60";
