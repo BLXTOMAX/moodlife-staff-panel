@@ -284,27 +284,29 @@ function AccordionItem({
         </div>
       </button>
 
-      {isOpen && (
-  <div className="border-t border-white/10 px-6 py-5">
-    {filteredCommands.length > 0 ? (
-      <div className="grid gap-3">
-        {filteredCommands.map((item, index) => (
-          <CommandCard
-            key={`${section.id}-${item.command}-${index}`}
-            item={item}
-            index={index}
-            query={query}
-          />
-        ))}
-      </div>
-    ) : (
-      <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/60">
-        Aucune commande trouvée dans cette catégorie pour la recherche{" "}
-        <span className="text-yellow-300">“{query}”</span>.
-      </div>
-    )}
-  </div>
-)}
+      <div
+  className={`overflow-hidden transition-all duration-300 ease-in-out border-t border-white/10 px-6 ${
+    isOpen ? "max-h-[1000px] py-5 opacity-100" : "max-h-0 py-0 opacity-0"
+  }`}
+>
+  {filteredCommands.length > 0 ? (
+    <div className="grid gap-3">
+      {filteredCommands.map((item, index) => (
+        <CommandCard
+          key={`${section.id}-${item.command}-${index}`}
+          item={item}
+          index={index}
+          query={query}
+        />
+      ))}
+    </div>
+  ) : (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/60">
+      Aucune commande trouvée dans cette catégorie pour la recherche{" "}
+      <span className="text-yellow-300">“{query}”</span>.
+    </div>
+  )}
+</div>
     </div>
   );
 }
