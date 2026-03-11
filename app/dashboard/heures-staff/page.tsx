@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type HeuresRow = {
@@ -65,6 +66,7 @@ export default function HeuresStaffPage() {
   const [selectedWeek, setSelectedWeek] = useState("");
   const [createdWeeks, setCreatedWeeks] = useState<string[]>([]);
   const [showRanking, setShowRanking] = useState(false);
+  const [openRole, setOpenRole] = useState<string | null>("Modérateur");
 
   useEffect(() => {
     loadRows();
@@ -139,6 +141,7 @@ export default function HeuresStaffPage() {
   function addRow(role = "Modérateur") {
     const newRow = buildEmptyRow(role);
     setRows((prev) => [...prev, newRow]);
+    setOpenRole(role);
   }
 
   function createWeek() {
@@ -348,16 +351,23 @@ export default function HeuresStaffPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="border-b border-yellow-500/15 bg-gradient-to-r from-black via-[#221600] to-black">
-        <div className="flex flex-col gap-5 px-6 py-8 lg:flex-row lg:items-start lg:justify-between">
+      <div className="relative overflow-hidden border-b border-yellow-500/15 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.14),transparent_28%),linear-gradient(135deg,rgba(0,0,0,0.98),rgba(20,20,20,0.92),rgba(10,10,10,0.98))]">
+        <div className="absolute -left-12 top-0 h-40 w-40 rounded-full bg-yellow-400/10 blur-3xl" />
+        <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-yellow-300/10 blur-3xl" />
+
+        <div className="relative flex flex-col gap-5 px-6 py-8 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.35em] text-yellow-400/80">
-              Gestion staff
-            </p>
-            <h1 className="text-4xl font-extrabold text-white">
+            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/15 bg-yellow-400/10 px-4 py-1.5">
+              <span className="h-2 w-2 rounded-full bg-yellow-300 shadow-[0_0_12px_rgba(253,224,71,0.9)]" />
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-yellow-300">
+                Gestion staff
+              </p>
+            </div>
+
+            <h1 className="mt-4 text-4xl font-extrabold text-white">
               Tableau des heures et reports
             </h1>
-            <p className="mt-3 max-w-4xl text-sm text-gray-300">
+            <p className="mt-3 max-w-4xl text-sm leading-7 text-white/72">
               Gère les heures, les reports, les semaines, le classement et la paye
               automatique.
             </p>
@@ -436,7 +446,7 @@ export default function HeuresStaffPage() {
 
       {showRanking && (
         <div className="grid gap-4 px-6 pb-6 lg:grid-cols-2">
-          <div className="rounded-2xl border border-yellow-500/20 bg-[#050505] p-5">
+          <div className="rounded-[24px] border border-yellow-500/20 bg-[#050505] p-5 shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-extrabold text-yellow-300">
                 Classement heures
@@ -470,7 +480,7 @@ export default function HeuresStaffPage() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-yellow-500/20 bg-[#050505] p-5">
+          <div className="rounded-[24px] border border-yellow-500/20 bg-[#050505] p-5 shadow-[0_10px_28px_rgba(0,0,0,0.28)]">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-extrabold text-yellow-300">
                 Classement reports
@@ -506,7 +516,7 @@ export default function HeuresStaffPage() {
         </div>
       )}
 
-      <div className="space-y-6 px-6 pb-10">
+      <div className="space-y-4 px-6 pb-10">
         {loading ? (
           <div className="rounded-2xl border border-yellow-500/20 bg-[#050505] px-4 py-10 text-sm text-gray-400">
             Chargement...
@@ -514,13 +524,22 @@ export default function HeuresStaffPage() {
         ) : (
           ROLE_ORDER.map((role) => {
             const group = groupedRows.get(role) || [];
+            const isOpen = openRole === role;
 
             return (
               <div
                 key={role}
-                className="overflow-hidden rounded-2xl border border-yellow-500/20 bg-[#050505] shadow-[0_0_40px_rgba(255,200,0,0.08)]"
+                className="overflow-hidden rounded-[26px] border border-yellow-500/20 bg-[#050505] shadow-[0_0_40px_rgba(255,200,0,0.08)]"
               >
-                <div className="flex flex-col gap-4 border-b border-yellow-500/15 bg-gradient-to-r from-[#1b1200] via-[#2a1b00] to-[#0a0a0a] px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenRole((prev) => (prev === role ? null : role))
+                  }
+                  className="relative flex w-full flex-col gap-4 border-b border-yellow-500/15 bg-[linear-gradient(135deg,rgba(36,24,0,0.95),rgba(14,14,14,0.98))] px-5 py-5 text-left transition hover:bg-[linear-gradient(135deg,rgba(46,31,0,0.95),rgba(16,16,16,0.98))] lg:flex-row lg:items-center lg:justify-between"
+                >
+                  <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-yellow-300 via-yellow-400 to-amber-500 opacity-80" />
+
                   <div>
                     <h2 className="text-xl font-extrabold uppercase tracking-[0.25em] text-yellow-300">
                       {role}
@@ -531,148 +550,164 @@ export default function HeuresStaffPage() {
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => addRow(role)}
-                    className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-300 transition hover:bg-yellow-500/20"
-                  >
-                    + Ajouter dans {role}
-                  </button>
-                </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addRow(role);
+                      }}
+                      className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-300 transition hover:bg-yellow-500/20"
+                    >
+                      + Ajouter dans {role}
+                    </button>
 
-                <div className="overflow-x-auto">
-                  <div className="min-w-[2350px]">
-                    <div className="grid grid-cols-[260px_170px_repeat(7,110px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 border-b border-yellow-500/10 bg-[#0b0b0b] px-4 py-4 text-xs font-bold uppercase text-yellow-300">
-                      <div>Nom du staff</div>
-                      <div>Semaine</div>
-                      <div>Lun h</div>
-                      <div>Mar h</div>
-                      <div>Mer h</div>
-                      <div>Jeu h</div>
-                      <div>Ven h</div>
-                      <div>Sam h</div>
-                      <div>Dim h</div>
-
-                      <div>R lun</div>
-                      <div>R mar</div>
-                      <div>R mer</div>
-                      <div>R jeu</div>
-                      <div>R ven</div>
-                      <div>R sam</div>
-                      <div>R dim</div>
-
-                      <div>Total rep</div>
-                      <div>Total h</div>
-                      <div>Paye</div>
-                      <div>Auteur</div>
-                      <div>Action</div>
+                    <div
+                      className={`rounded-full border border-yellow-400/20 bg-yellow-400/10 p-2 text-yellow-300 transition duration-300 ${
+                        isOpen ? "rotate-180" : ""
+                      }`}
+                    >
+                      <ChevronDown className="h-4 w-4" />
                     </div>
+                  </div>
+                </button>
 
-                    {group.length === 0 ? (
-                      <div className="px-4 py-8 text-sm text-gray-500">
-                        Aucun staff dans cette catégorie pour cette semaine.
+                {isOpen && (
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[2350px]">
+                      <div className="grid grid-cols-[260px_170px_repeat(7,110px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 border-b border-yellow-500/10 bg-[#0b0b0b] px-4 py-4 text-xs font-bold uppercase text-yellow-300">
+                        <div>Nom du staff</div>
+                        <div>Semaine</div>
+                        <div>Lun h</div>
+                        <div>Mar h</div>
+                        <div>Mer h</div>
+                        <div>Jeu h</div>
+                        <div>Ven h</div>
+                        <div>Sam h</div>
+                        <div>Dim h</div>
+
+                        <div>R lun</div>
+                        <div>R mar</div>
+                        <div>R mer</div>
+                        <div>R jeu</div>
+                        <div>R ven</div>
+                        <div>R sam</div>
+                        <div>R dim</div>
+
+                        <div>Total rep</div>
+                        <div>Total h</div>
+                        <div>Paye</div>
+                        <div>Auteur</div>
+                        <div>Action</div>
                       </div>
-                    ) : (
-                      <div className="divide-y divide-yellow-500/10">
-                        {group.map((row) => {
-                          const totalMinutesRow = computeTotalMinutes(row);
-                          const totalReportsRow = computeTotalReports(row);
-                          const paye = computePaye(
-                            row.role,
-                            row.staff,
-                            totalMinutesRow
-                          );
 
-                          return (
-                            <div
-                              key={row.id}
-                              className={`grid grid-cols-[260px_170px_repeat(7,110px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4 ${
-                                row.isNew ? "bg-yellow-500/5" : ""
-                              }`}
-                            >
-                              <input
-                                value={row.staff || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "staff", e.target.value)
-                                }
-                                placeholder="Nom du staff"
-                                className={`${inputClass} border-yellow-500/30`}
-                              />
+                      {group.length === 0 ? (
+                        <div className="px-4 py-8 text-sm text-gray-500">
+                          Aucun staff dans cette catégorie pour cette semaine.
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-yellow-500/10">
+                          {group.map((row) => {
+                            const totalMinutesRow = computeTotalMinutes(row);
+                            const totalReportsRow = computeTotalReports(row);
+                            const paye = computePaye(
+                              row.role,
+                              row.staff,
+                              totalMinutesRow
+                            );
 
-                              <input
-                                value={row.semaine || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "semaine", e.target.value)
-                                }
-                                placeholder={activeWeek}
-                                className={`${inputClass} border-yellow-500/30`}
-                              />
-
-                              {HOUR_DAYS.map((day) => (
-                                <input
-                                  key={String(day)}
-                                  value={String(row[day] || "")}
-                                  onChange={(e) =>
-                                    updateRow(row.id, day, e.target.value)
-                                  }
-                                  placeholder="2h30"
-                                  className={`${inputClass} border-green-500/30 bg-green-950/10`}
-                                />
-                              ))}
-
-                              {REPORT_DAYS.map((day) => (
-                                <input
-                                  key={String(day)}
-                                  value={String(row[day] || "")}
-                                  onChange={(e) =>
-                                    updateRow(row.id, day, e.target.value)
-                                  }
-                                  placeholder="0"
-                                  className={`${inputClass} border-blue-500/30 bg-blue-950/10`}
-                                />
-                              ))}
-
-                              <div className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 font-extrabold text-blue-300">
-                                {totalReportsRow}
-                              </div>
-
-                              <div className="flex items-center justify-center rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 font-extrabold text-yellow-300">
-                                {formatMinutes(totalMinutesRow)}
-                              </div>
-
+                            return (
                               <div
-                                className={`flex items-center justify-center rounded-xl border px-4 py-3 font-extrabold ${
-                                  paye > 0
-                                    ? "border-green-500/30 bg-green-500/15 text-green-300"
-                                    : "border-red-500/30 bg-red-500/15 text-red-300"
+                                key={row.id}
+                                className={`grid grid-cols-[260px_170px_repeat(7,110px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4 ${
+                                  row.isNew ? "bg-yellow-500/5" : ""
                                 }`}
                               >
-                                {paye}
-                              </div>
+                                <input
+                                  value={row.staff || ""}
+                                  onChange={(e) =>
+                                    updateRow(row.id, "staff", e.target.value)
+                                  }
+                                  placeholder="Nom du staff"
+                                  className={`${inputClass} border-yellow-500/30`}
+                                />
 
-                              <input
-                                value={row.auteur || ""}
-                                onChange={(e) =>
-                                  updateRow(row.id, "auteur", e.target.value)
-                                }
-                                placeholder="Auteur"
-                                className={`${inputClass} border-purple-500/30 bg-purple-950/10`}
-                              />
+                                <input
+                                  value={row.semaine || ""}
+                                  onChange={(e) =>
+                                    updateRow(row.id, "semaine", e.target.value)
+                                  }
+                                  placeholder={activeWeek}
+                                  className={`${inputClass} border-yellow-500/30`}
+                                />
 
-                              <div>
-                                <button
-                                  onClick={() => deleteRow(row.id)}
-                                  className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
+                                {HOUR_DAYS.map((day) => (
+                                  <input
+                                    key={String(day)}
+                                    value={String(row[day] || "")}
+                                    onChange={(e) =>
+                                      updateRow(row.id, day, e.target.value)
+                                    }
+                                    placeholder="2h30"
+                                    className={`${inputClass} border-green-500/30 bg-green-950/10`}
+                                  />
+                                ))}
+
+                                {REPORT_DAYS.map((day) => (
+                                  <input
+                                    key={String(day)}
+                                    value={String(row[day] || "")}
+                                    onChange={(e) =>
+                                      updateRow(row.id, day, e.target.value)
+                                    }
+                                    placeholder="0"
+                                    className={`${inputClass} border-blue-500/30 bg-blue-950/10`}
+                                  />
+                                ))}
+
+                                <div className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 font-extrabold text-blue-300">
+                                  {totalReportsRow}
+                                </div>
+
+                                <div className="flex items-center justify-center rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 font-extrabold text-yellow-300">
+                                  {formatMinutes(totalMinutesRow)}
+                                </div>
+
+                                <div
+                                  className={`flex items-center justify-center rounded-xl border px-4 py-3 font-extrabold ${
+                                    paye > 0
+                                      ? "border-green-500/30 bg-green-500/15 text-green-300"
+                                      : "border-red-500/30 bg-red-500/15 text-red-300"
+                                  }`}
                                 >
-                                  Suppr.
-                                </button>
+                                  {paye}
+                                </div>
+
+                                <input
+                                  value={row.auteur || ""}
+                                  onChange={(e) =>
+                                    updateRow(row.id, "auteur", e.target.value)
+                                  }
+                                  placeholder="Auteur"
+                                  className={`${inputClass} border-purple-500/30 bg-purple-950/10`}
+                                />
+
+                                <div>
+                                  <button
+                                    onClick={() => deleteRow(row.id)}
+                                    className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
+                                  >
+                                    Suppr.
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             );
           })
@@ -790,7 +825,7 @@ function StatCard({
   };
 
   return (
-    <div className={`rounded-2xl border bg-gradient-to-r p-5 ${tones[tone]}`}>
+    <div className={`rounded-[24px] border bg-gradient-to-r p-5 shadow-[0_10px_28px_rgba(0,0,0,0.28)] ${tones[tone]}`}>
       <p className="text-sm font-semibold text-gray-300">{title}</p>
       <p className="mt-3 text-3xl font-extrabold">{value}</p>
     </div>
