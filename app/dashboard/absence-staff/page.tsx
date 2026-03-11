@@ -409,7 +409,7 @@ export default function AbsenceStaffPage() {
             {Object.entries(groupedByMonth).map(([month, items]) => (
               <div key={month}>
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="bg-gradient-to-r from-yellow-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-sm font-black uppercase tracking-[0.22em] text-transparent">
+                  <h3 className="bg-gradient-to-r from-yellow-200 via-yellow-300 to-amber-400 bg-clip-text text-sm font-black uppercase tracking-[0.22em] text-transparent">
                     {month}
                   </h3>
                   <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
@@ -423,7 +423,7 @@ export default function AbsenceStaffPage() {
                       key={absence.id}
                       className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.02))] p-5 shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition duration-300 hover:-translate-y-0.5 hover:border-yellow-300/20"
                     >
-                      <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-yellow-300 via-fuchsia-400 to-cyan-400 opacity-80" />
+                      <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-yellow-300 via-yellow-400 to-amber-500 opacity-80" />
                       <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-r from-yellow-400/5 via-fuchsia-400/5 to-cyan-400/5 opacity-0 transition group-hover:opacity-100" />
 
                       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
