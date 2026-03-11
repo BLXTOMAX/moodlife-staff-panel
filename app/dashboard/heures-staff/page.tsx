@@ -26,6 +26,7 @@ type HeuresRow = {
   total_heures: string;
   paye: number;
   auteur: string;
+  isNew?: boolean;
 };
 
 const HOUR_DAYS: Array<keyof HeuresRow> = [
@@ -54,12 +55,13 @@ const ROLE_ORDER = [
   "Administrateur",
   "Super-Administrateur",
   "Gérant-Staff",
-];
+] as const;
 
 export default function HeuresStaffPage() {
   const [rows, setRows] = useState<HeuresRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingAll, setSavingAll] = useState(false);
+  const [deletedIds, setDeletedIds] = useState<number[]>([]);
 
   useEffect(() => {
     loadRows();
@@ -79,12 +81,19 @@ export default function HeuresStaffPage() {
       return;
     }
 
-    setRows((data || []) as HeuresRow[]);
+    const cleanedRows = ((data || []) as HeuresRow[]).map((row) => ({
+      ...row,
+      isNew: false,
+    }));
+
+    setRows(cleanedRows);
+    setDeletedIds([]);
     setLoading(false);
   }
 
-  async function addRow(role = "Modérateur") {
-    const { error } = await supabase.from("heures_staff").insert({
+  function buildEmptyRow(role = "Modérateur"): HeuresRow {
+    return {
+      id: -Date.now() - Math.floor(Math.random() * 1000),
       semaine: "",
       staff: "",
       role,
@@ -106,29 +115,24 @@ export default function HeuresStaffPage() {
       total_heures: "0h00",
       paye: 0,
       auteur: "",
-    });
-
-    if (error) {
-      console.error("Erreur ajout heures staff :", error);
-      return;
-    }
-
-    await loadRows();
+      isNew: true,
+    };
   }
 
-  async function deleteRow(id: number) {
-    const previous = rows;
-    setRows((prev) => prev.filter((row) => row.id !== id));
+  function addRow(role = "Modérateur") {
+    const newRow = buildEmptyRow(role);
+    setRows((prev) => [...prev, newRow]);
+  }
 
-    const { error } = await supabase.from("heures_staff").delete().eq("id", id);
+  function deleteRow(id: number) {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
 
-    if (error) {
-      console.error("Erreur suppression heures staff :", error);
-      setRows(previous);
-      return;
+    if (!row.isNew && id > 0) {
+      setDeletedIds((prev) => [...prev, id]);
     }
 
-    await loadRows();
+    setRows((prev) => prev.filter((r) => r.id !== id));
   }
 
   function updateRow(
@@ -160,55 +164,19 @@ export default function HeuresStaffPage() {
     );
   }
 
-  async function saveRow(id: number) {
-    const row = rows.find((r) => r.id === id);
-    if (!row) return;
-
-    const totalMinutes = computeTotalMinutes(row);
-    const totalFormatted = formatMinutes(totalMinutes);
-    const totalReports = computeTotalReports(row);
-    const paye = computePaye(row.role, row.staff, totalMinutes);
-
-    const payload = {
-      semaine: row.semaine,
-      staff: row.staff,
-      role: row.role,
-      lundi: row.lundi,
-      mardi: row.mardi,
-      mercredi: row.mercredi,
-      jeudi: row.jeudi,
-      vendredi: row.vendredi,
-      samedi: row.samedi,
-      dimanche: row.dimanche,
-      reports_lundi: row.reports_lundi,
-      reports_mardi: row.reports_mardi,
-      reports_mercredi: row.reports_mercredi,
-      reports_jeudi: row.reports_jeudi,
-      reports_vendredi: row.reports_vendredi,
-      reports_samedi: row.reports_samedi,
-      reports_dimanche: row.reports_dimanche,
-      total_reports: totalReports,
-      total_heures: totalFormatted,
-      paye,
-      auteur: row.auteur,
-    };
-
-    const { error } = await supabase
-      .from("heures_staff")
-      .update(payload)
-      .eq("id", id);
-
-    if (error) {
-      console.error("Erreur sauvegarde heures staff :", error);
-      await loadRows();
-      return;
-    }
-
-    await loadRows();
+  async function saveRow() {
+    await saveAllRows();
   }
 
   async function saveAllRows() {
     setSavingAll(true);
+
+    for (const id of deletedIds) {
+      const { error } = await supabase.from("heures_staff").delete().eq("id", id);
+      if (error) {
+        console.error(`Erreur suppression ligne ${id} :`, error);
+      }
+    }
 
     for (const row of rows) {
       const totalMinutes = computeTotalMinutes(row);
@@ -240,13 +208,20 @@ export default function HeuresStaffPage() {
         auteur: row.auteur,
       };
 
-      const { error } = await supabase
-        .from("heures_staff")
-        .update(payload)
-        .eq("id", row.id);
+      if (row.isNew) {
+        const { error } = await supabase.from("heures_staff").insert(payload);
+        if (error) {
+          console.error("Erreur insert nouvelle ligne :", error);
+        }
+      } else {
+        const { error } = await supabase
+          .from("heures_staff")
+          .update(payload)
+          .eq("id", row.id);
 
-      if (error) {
-        console.error(`Erreur sauvegarde ligne ${row.id} :`, error);
+        if (error) {
+          console.error(`Erreur update ligne ${row.id} :`, error);
+        }
       }
     }
 
@@ -258,13 +233,11 @@ export default function HeuresStaffPage() {
     const ok = window.confirm("Tu veux vraiment vider toutes les heures staff ?");
     if (!ok) return;
 
-    const { error } = await supabase.from("heures_staff").delete().neq("id", 0);
-    if (error) {
-      console.error("Erreur clear heures staff :", error);
-      return;
-    }
-
-    await loadRows();
+    setRows([]);
+    setDeletedIds((prev) => [
+      ...prev,
+      ...rows.filter((r) => !r.isNew && r.id > 0).map((r) => r.id),
+    ]);
   }
 
   const totalStaff = rows.length;
@@ -437,7 +410,9 @@ export default function HeuresStaffPage() {
                           return (
                             <div
                               key={row.id}
-                              className="grid grid-cols-[260px_170px_repeat(7,110px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4"
+                              className={`grid grid-cols-[260px_170px_repeat(7,110px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4 ${
+                                row.isNew ? "bg-yellow-500/5" : ""
+                              }`}
                             >
                               <input
                                 value={row.staff || ""}
@@ -510,7 +485,7 @@ export default function HeuresStaffPage() {
 
                               <div className="flex flex-col gap-2">
                                 <button
-                                  onClick={() => saveRow(row.id)}
+                                  onClick={() => saveRow()}
                                   className="rounded-xl border border-green-600/60 bg-green-950/50 px-4 py-3 font-semibold text-green-300 transition hover:bg-green-900/60"
                                 >
                                   Sauvegarder
