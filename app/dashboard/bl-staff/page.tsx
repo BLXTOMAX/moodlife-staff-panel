@@ -13,6 +13,9 @@ type BLStaffRow = {
 
 const STORAGE_KEY = "moodlife-bl-staff";
 
+const inputClassName =
+  "w-full rounded-xl border border-yellow-500/20 bg-yellow-500/[0.03] px-3 py-2 text-sm text-white placeholder:text-zinc-500 outline-none transition focus:border-yellow-400/60 focus:bg-yellow-500/[0.05]";
+
 export default function BLStaffPage() {
   const [rows, setRows] = useState<BLStaffRow[]>([]);
   const [nextId, setNextId] = useState(1);
@@ -23,12 +26,12 @@ export default function BLStaffPage() {
 
     try {
       const parsed = JSON.parse(saved) as {
-        rows: BLStaffRow[];
-        nextId: number;
+        rows?: BLStaffRow[];
+        nextId?: number;
       };
 
-      if (parsed.rows) setRows(parsed.rows);
-      if (parsed.nextId) setNextId(parsed.nextId);
+      setRows(parsed.rows ?? []);
+      setNextId(parsed.nextId ?? 1);
     } catch (error) {
       console.error("Erreur chargement BL staff :", error);
     }
@@ -89,15 +92,17 @@ export default function BLStaffPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="panel-card p-6">
+    <div className="relative min-h-screen overflow-hidden space-y-8 bg-[radial-gradient(circle_at_top,rgba(255,200,0,0.16),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(255,200,0,0.10),transparent_32%),linear-gradient(180deg,rgba(255,215,0,0.03),rgba(0,0,0,0))]">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(rgba(255,200,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,200,0,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
+
+      <div className="panel-card p-6 border border-yellow-400/20 bg-yellow-500/[0.03] shadow-[0_0_30px_rgba(255,200,0,0.08)] backdrop-blur-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.28em] text-yellow-400/70">
               Gestion staff
             </p>
             <h1 className="mt-3 text-4xl font-black text-white">BL Staff</h1>
-            <p className="mt-3 text-zinc-400">
+            <p className="mt-3 max-w-3xl text-zinc-300">
               Liste les staffs blacklistés avec leur pseudo, Discord,
               commentaire, date et auteur de l’ajout.
             </p>
@@ -115,7 +120,7 @@ export default function BLStaffPage() {
             <button
               type="button"
               onClick={clearAll}
-              className="rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-3 font-bold text-red-300 transition hover:bg-red-500/15"
+              className="rounded-2xl border border-red-500/25 bg-red-500/10 px-5 py-3 font-bold text-red-300 transition hover:bg-red-500/20"
             >
               Tout vider
             </button>
@@ -124,49 +129,42 @@ export default function BLStaffPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="panel-card p-5">
-          <h2 className="text-lg font-bold text-white">Entrées BL</h2>
-          <p className="mt-3 text-3xl font-black text-yellow-300">
-            {totalEntries}
-          </p>
-        </div>
-
-        <div className="panel-card p-5">
-          <h2 className="text-lg font-bold text-white">Sauvegarde</h2>
-          <p className="mt-3 text-sm text-zinc-400">
-            Les données restent enregistrées après un refresh de la page.
-          </p>
-        </div>
-
-        <div className="panel-card p-5">
-          <h2 className="text-lg font-bold text-white">Utilisation</h2>
-          <p className="mt-3 text-sm text-zinc-400">
-            Utilise cette page pour garder un historique propre des BL staff.
-          </p>
-        </div>
+        <StatCard
+          title="Entrées BL"
+          value={String(totalEntries)}
+          valueColor="text-yellow-300"
+        />
+        <InfoCard
+          title="Sauvegarde"
+          text="Les données restent enregistrées après un refresh de la page."
+        />
+        <InfoCard
+          title="Utilisation"
+          text="Utilise cette page pour garder un historique propre des BL staff."
+        />
       </div>
 
-      <div className="panel-card overflow-hidden">
+      <div className="panel-card overflow-hidden border border-yellow-400/15 bg-yellow-500/[0.025] shadow-[0_0_30px_rgba(255,200,0,0.05)] backdrop-blur-sm">
         <div className="overflow-x-auto">
           <table className="min-w-[1400px] border-collapse">
-            <thead className="bg-zinc-900/80">
-              <tr className="border-b border-white/10">
-                <th className="w-[220px] px-4 py-4 text-left text-sm font-bold text-yellow-400">
+            <thead className="bg-yellow-500/[0.04]">
+              <tr className="border-b border-yellow-500/20">
+                <th className="w-[220px] px-4 py-4 text-left text-sm font-bold uppercase tracking-wide text-yellow-300">
                   Pseudo
                 </th>
-                <th className="w-[260px] px-4 py-4 text-left text-sm font-bold text-zinc-300">
+                <th className="w-[260px] px-4 py-4 text-left text-sm font-bold uppercase tracking-wide text-zinc-200">
                   Discord
                 </th>
-                <th className="w-[520px] px-4 py-4 text-left text-sm font-bold text-zinc-300">
+                <th className="w-[520px] px-4 py-4 text-left text-sm font-bold uppercase tracking-wide text-zinc-200">
                   Commentaire
                 </th>
-                <th className="w-[180px] px-4 py-4 text-center text-sm font-bold text-zinc-300">
+                <th className="w-[180px] px-4 py-4 text-center text-sm font-bold uppercase tracking-wide text-zinc-200">
                   Date
                 </th>
-                <th className="w-[220px] px-4 py-4 text-left text-sm font-bold text-zinc-300">
+                <th className="w-[220px] px-4 py-4 text-left text-sm font-bold uppercase tracking-wide text-zinc-200">
                   Staff qui ajoute
                 </th>
-                <th className="w-[120px] px-4 py-4 text-center text-sm font-bold text-zinc-300">
+                <th className="w-[120px] px-4 py-4 text-center text-sm font-bold uppercase tracking-wide text-zinc-200">
                   Action
                 </th>
               </tr>
@@ -177,7 +175,7 @@ export default function BLStaffPage() {
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-4 py-10 text-center text-zinc-500"
+                    className="px-4 py-14 text-center text-zinc-400"
                   >
                     Aucune entrée BL pour le moment.
                   </td>
@@ -186,7 +184,7 @@ export default function BLStaffPage() {
                 rows.map((row) => (
                   <tr
                     key={row.id}
-                    className="border-b border-white/5 align-top transition hover:bg-white/[0.02]"
+                    className="border-b border-yellow-500/15 align-top transition hover:bg-yellow-500/[0.04]"
                   >
                     <td className="px-4 py-4">
                       <input
@@ -195,7 +193,7 @@ export default function BLStaffPage() {
                           updateRow(row.id, "pseudo", e.target.value)
                         }
                         placeholder="Pseudo"
-                        className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-yellow-400/30"
+                        className={inputClassName}
                       />
                     </td>
 
@@ -206,7 +204,7 @@ export default function BLStaffPage() {
                           updateRow(row.id, "discord", e.target.value)
                         }
                         placeholder="ID Discord ou pseudo Discord"
-                        className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-yellow-400/30"
+                        className={inputClassName}
                       />
                     </td>
 
@@ -218,7 +216,7 @@ export default function BLStaffPage() {
                         }
                         placeholder="Commentaire"
                         rows={3}
-                        className="w-full resize-none rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-yellow-400/30"
+                        className={`${inputClassName} resize-none`}
                       />
                     </td>
 
@@ -229,7 +227,7 @@ export default function BLStaffPage() {
                         onChange={(e) =>
                           updateRow(row.id, "date", e.target.value)
                         }
-                        className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-yellow-400/30"
+                        className={inputClassName}
                       />
                     </td>
 
@@ -240,7 +238,7 @@ export default function BLStaffPage() {
                           updateRow(row.id, "ajoutePar", e.target.value)
                         }
                         placeholder="Staff qui ajoute"
-                        className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-yellow-400/30"
+                        className={inputClassName}
                       />
                     </td>
 
@@ -248,7 +246,7 @@ export default function BLStaffPage() {
                       <button
                         type="button"
                         onClick={() => removeRow(row.id)}
-                        className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15"
+                        className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/20"
                       >
                         Suppr.
                       </button>
@@ -260,6 +258,38 @@ export default function BLStaffPage() {
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  valueColor,
+}: {
+  title: string;
+  value: string;
+  valueColor: string;
+}) {
+  return (
+    <div className="panel-card p-5 border border-yellow-400/15 bg-yellow-500/[0.025] hover:border-yellow-300/30 transition">
+      <h2 className="text-lg font-bold text-white">{title}</h2>
+      <p className={`mt-3 text-3xl font-black ${valueColor}`}>{value}</p>
+    </div>
+  );
+}
+
+function InfoCard({
+  title,
+  text,
+}: {
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="panel-card p-5 border border-yellow-400/15 bg-yellow-500/[0.025] hover:border-yellow-300/30 transition">
+      <h2 className="text-lg font-bold text-white">{title}</h2>
+      <p className="mt-3 text-sm text-zinc-300">{text}</p>
     </div>
   );
 }
