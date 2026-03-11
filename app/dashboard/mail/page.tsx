@@ -39,19 +39,26 @@ function StatCard({
   value,
   valueClassName = "text-yellow-300",
   description,
+  glowClassName = "from-yellow-500/20 via-yellow-300/10 to-transparent",
 }: {
   title: string;
   value: string | number;
   valueClassName?: string;
   description: string;
+  glowClassName?: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-yellow-400/15 bg-[#111111]/88 p-5 shadow-[0_10px_28px_rgba(0,0,0,0.30)] backdrop-blur-md">
-      <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-        {title}
-      </p>
-      <p className={`mt-3 text-3xl font-black ${valueClassName}`}>{value}</p>
-      <p className="mt-2 text-sm leading-6 text-white/60">{description}</p>
+    <div className="group relative overflow-hidden rounded-[24px] border border-yellow-400/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.30)] backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-yellow-300/20">
+      <div
+        className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-r ${glowClassName} opacity-80 blur-2xl transition group-hover:opacity-100`}
+      />
+      <div className="relative">
+        <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
+          {title}
+        </p>
+        <p className={`mt-3 text-3xl font-black ${valueClassName}`}>{value}</p>
+        <p className="mt-2 text-sm leading-6 text-white/60">{description}</p>
+      </div>
     </div>
   );
 }
@@ -201,15 +208,18 @@ export default function MailPage() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-yellow-400/15 bg-gradient-to-r from-black/80 via-black/70 to-black/40 p-8 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
-        <div className="absolute inset-0 bg-black/35" />
+      <section className="relative overflow-hidden rounded-[32px] border border-yellow-400/15 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.16),transparent_28%),linear-gradient(135deg,rgba(0,0,0,0.95),rgba(17,17,17,0.82),rgba(10,10,10,0.96))] p-8 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
+        <div className="absolute inset-0 bg-black/20" />
         <div className="absolute -left-10 top-0 h-40 w-40 rounded-full bg-yellow-400/10 blur-3xl" />
-        <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-yellow-300/10 blur-3xl" />
+        <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-amber-300/10 blur-3xl" />
 
         <div className="relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-yellow-300">
-            Suicide RP
-          </p>
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/15 bg-yellow-400/10 px-4 py-1.5">
+            <span className="h-2 w-2 rounded-full bg-yellow-300 shadow-[0_0_12px_rgba(253,224,71,0.8)]" />
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-yellow-300">
+              Suicide RP
+            </p>
+          </div>
 
           <h1 className="mt-4 text-4xl font-black tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.75)]">
             Accès au formulaire Suicide RP
@@ -219,7 +229,8 @@ export default function MailPage() {
 
           <p className="mt-4 max-w-3xl text-sm leading-7 text-white/82">
             Pour accéder au Google Form de Suicide RP, l’adresse mail doit être
-            enregistrée. Cette liste est maintenant synchronisée pour tout le staff.
+            enregistrée. Cette liste est maintenant synchronisée pour tout le
+            staff.
           </p>
         </div>
       </section>
@@ -230,22 +241,29 @@ export default function MailPage() {
           value={stats.total}
           valueClassName="text-white"
           description="Nombre total d’adresses actuellement autorisées."
+          glowClassName="from-white/10 via-yellow-200/5 to-transparent"
         />
         <StatCard
           title="Résultats visibles"
           value={stats.visible}
-          valueClassName="text-sky-300"
+          valueClassName="text-yellow-200"
           description="Nombre d’adresses affichées selon la recherche."
+          glowClassName="from-yellow-400/20 via-amber-300/10 to-transparent"
         />
         <StatCard
           title="Accès Form"
           value={stats.access}
           valueClassName={hasAccess ? "text-emerald-300" : "text-red-300"}
           description="Le formulaire est accessible seulement si au moins un mail est enregistré."
+          glowClassName={
+            hasAccess
+              ? "from-emerald-400/15 via-yellow-300/10 to-transparent"
+              : "from-red-500/15 via-yellow-300/10 to-transparent"
+          }
         />
       </div>
 
-      <div className="rounded-[28px] border border-red-500/20 bg-red-500/10 p-5 shadow-[0_10px_24px_rgba(127,29,29,0.16)]">
+      <div className="rounded-[28px] border border-red-500/20 bg-[linear-gradient(135deg,rgba(239,68,68,0.12),rgba(0,0,0,0.18))] p-5 shadow-[0_10px_24px_rgba(127,29,29,0.16)]">
         <div className="flex gap-3">
           <ShieldAlert className="mt-0.5 shrink-0 text-red-300" />
           <p className="text-sm leading-6 text-white/82">
@@ -256,8 +274,9 @@ export default function MailPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
-          <div className="mb-5">
+        <div className="relative overflow-hidden rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
+          <div className="absolute right-0 top-0 h-36 w-36 rounded-full bg-yellow-400/10 blur-3xl" />
+          <div className="relative mb-5">
             <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
               Ajout
             </p>
@@ -270,7 +289,7 @@ export default function MailPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="relative space-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium text-white/90">
                 Adresse mail
@@ -281,13 +300,13 @@ export default function MailPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="exemple@gmail.com"
-                className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
+                className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45 focus:shadow-[0_0_0_4px_rgba(250,204,21,0.08)]"
               />
             </div>
 
             <button
               type="submit"
-              className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 font-bold text-black transition hover:brightness-105"
+              className="inline-flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] px-5 py-3 font-bold text-black shadow-[0_12px_24px_rgba(250,204,21,0.18)] transition hover:-translate-y-0.5 hover:brightness-105"
             >
               <Plus size={16} />
               Enregistrer le mail
@@ -300,19 +319,38 @@ export default function MailPage() {
             </div>
           )}
 
-          <a
-            href={GOOGLE_FORM_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-yellow-400/15 bg-yellow-400/10 px-5 py-3 text-sm font-semibold text-yellow-300 transition hover:bg-yellow-400/15"
-          >
-            <ExternalLink size={16} />
-            Ouvrir le Google Form
-          </a>
+          {hasAccess ? (
+            <a
+              href={GOOGLE_FORM_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-yellow-400/15 bg-yellow-400/10 px-5 py-3 text-sm font-semibold text-yellow-300 transition hover:bg-yellow-400/15 hover:text-yellow-200"
+            >
+              <ExternalLink size={16} />
+              Ouvrir le Google Form
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="mt-6 inline-flex cursor-not-allowed items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/35 opacity-70"
+            >
+              <ExternalLink size={16} />
+              Ouvrir le Google Form
+            </button>
+          )}
+
+          {!hasAccess && (
+            <p className="mt-3 text-xs leading-5 text-yellow-200/75">
+              Ajoute au moins une adresse mail pour débloquer l’accès au formulaire.
+            </p>
+          )}
         </div>
 
-        <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative overflow-hidden rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
+          <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-amber-300/10 blur-3xl" />
+
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
                 Liste
@@ -329,7 +367,7 @@ export default function MailPage() {
                 placeholder="Rechercher un mail..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-black/35 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
+                className="w-full rounded-2xl border border-white/10 bg-black/35 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45 focus:shadow-[0_0_0_4px_rgba(250,204,21,0.08)]"
               />
             </div>
           </div>
@@ -355,11 +393,12 @@ export default function MailPage() {
                 return (
                   <div
                     key={entry.id}
-                    className="rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)]"
+                    className="group relative overflow-hidden rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)] transition duration-300 hover:border-yellow-300/20 hover:bg-[#171717]/95"
                   >
+                    <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-yellow-300 via-yellow-400 to-amber-500 opacity-80" />
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/10 p-3 text-yellow-300">
+                        <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/10 p-3 text-yellow-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                           <Mail className="h-5 w-5" />
                         </div>
 
