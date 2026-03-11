@@ -179,14 +179,26 @@ export default function RemonteesPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="border-b border-yellow-500/15 bg-gradient-to-r from-black via-[#1a1200] to-black">
-        <div className="flex flex-col gap-5 px-6 py-8 lg:flex-row lg:items-start lg:justify-between">
+      <section className="relative overflow-hidden border-b border-yellow-500/15 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.14),transparent_28%),linear-gradient(135deg,rgba(0,0,0,0.98),rgba(24,18,0,0.92),rgba(10,10,10,0.98))]">
+        <div className="absolute -left-10 top-0 h-40 w-40 rounded-full bg-yellow-400/10 blur-3xl" />
+        <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-yellow-300/10 blur-3xl" />
+
+        <div className="relative flex flex-col gap-5 px-6 py-8 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.35em] text-yellow-500/80">
-              Gestion staff
-            </p>
-            <h1 className="text-4xl font-extrabold">Remontées Staff</h1>
-            <p className="mt-3 max-w-3xl text-sm text-gray-400">
+            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/15 bg-yellow-400/10 px-4 py-1.5">
+              <span className="h-2 w-2 rounded-full bg-yellow-300 shadow-[0_0_12px_rgba(253,224,71,0.9)]" />
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-yellow-300">
+                Gestion staff
+              </p>
+            </div>
+
+            <h1 className="mt-4 text-4xl font-extrabold text-white">
+              Remontées Staff
+            </h1>
+
+            <div className="mt-4 h-px w-44 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
+
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-white/72">
               Suivi des erreurs et points positifs remontés sur les staffs, avec
               historique propre et visible par tous.
             </p>
@@ -195,7 +207,7 @@ export default function RemonteesPage() {
           <div className="flex flex-wrap gap-3">
             <button
               onClick={addRow}
-              className="rounded-2xl bg-yellow-400 px-5 py-3 font-bold text-black transition hover:opacity-90"
+              className="rounded-2xl bg-yellow-400 px-5 py-3 font-bold text-black shadow-[0_12px_24px_rgba(250,204,21,0.18)] transition hover:brightness-105"
             >
               + Ajouter une remontée
             </button>
@@ -203,7 +215,7 @@ export default function RemonteesPage() {
             <button
               onClick={saveAllRows}
               disabled={savingAll}
-              className="rounded-2xl bg-green-500 px-5 py-3 font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-2xl bg-emerald-500 px-5 py-3 font-bold text-black shadow-[0_12px_24px_rgba(16,185,129,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {savingAll ? "Sauvegarde..." : "💾 Enregistrer"}
             </button>
@@ -216,7 +228,7 @@ export default function RemonteesPage() {
             </button>
           </div>
         </div>
-      </div>
+      </section>
 
       <div className="grid gap-4 px-6 py-6 md:grid-cols-4">
         <StatCard title="Total remontées" value={String(total)} />
@@ -226,17 +238,15 @@ export default function RemonteesPage() {
       </div>
 
       <div className="px-6 pb-4">
-        <div className="flex justify-end">
-          <div className="rounded-xl border border-yellow-500/20 bg-[#0b0b0b] px-4 py-2 text-sm text-gray-300">
-            Les modifications restent locales jusqu’au clic sur{" "}
-            <span className="font-semibold text-yellow-300">Enregistrer</span>.
-          </div>
+        <div className="rounded-2xl border border-yellow-500/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-4 py-3 text-sm text-white/72 shadow-[0_8px_20px_rgba(0,0,0,0.18)]">
+          Les modifications restent locales jusqu’au clic sur{" "}
+          <span className="font-semibold text-yellow-300">Enregistrer</span>.
         </div>
       </div>
 
       <div className="px-6 pb-10">
-        <div className="overflow-hidden rounded-2xl border border-yellow-500/20 bg-[#050505] shadow-[0_0_40px_rgba(255,200,0,0.06)]">
-          <div className="hidden grid-cols-7 gap-4 border-b border-yellow-500/15 bg-gradient-to-r from-[#120d00] to-[#060606] px-4 py-4 text-sm font-bold uppercase text-yellow-400 xl:grid">
+        <div className="overflow-hidden rounded-[26px] border border-yellow-500/20 bg-[#050505] shadow-[0_0_40px_rgba(255,200,0,0.06)]">
+          <div className="hidden grid-cols-7 gap-4 border-b border-yellow-500/15 bg-[linear-gradient(135deg,rgba(26,18,0,0.95),rgba(6,6,6,0.98))] px-4 py-4 text-sm font-bold uppercase text-yellow-400 xl:grid">
             <div>Nom</div>
             <div>Discord</div>
             <div>Type</div>
@@ -257,7 +267,7 @@ export default function RemonteesPage() {
               {rows.map((row) => (
                 <div
                   key={row.id}
-                  className={`grid grid-cols-1 gap-4 px-4 py-4 xl:grid-cols-7 rounded-xl ${
+                  className={`grid grid-cols-1 gap-4 px-4 py-4 xl:grid-cols-7 ${
                     normalizeType(row.type) === "positive"
                       ? "bg-green-950/10"
                       : "bg-red-950/10"
@@ -289,7 +299,7 @@ export default function RemonteesPage() {
                     <select
                       value={displayType(row.type)}
                       onChange={(e) => updateRow(row.id, "type", e.target.value)}
-                      className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition placeholder:text-gray-500 focus:border-yellow-400/60 ${
+                      className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-yellow-400/60 ${
                         normalizeType(row.type) === "positive"
                           ? "border-green-500/40 bg-green-950/20 text-green-300"
                           : "border-red-500/40 bg-red-950/20 text-red-300"
@@ -307,7 +317,7 @@ export default function RemonteesPage() {
                         updateRow(row.id, "description", e.target.value)
                       }
                       placeholder="Raison de la remontée"
-                      className={`${inputClass} min-h-[96px] resize-y`}
+                      className={`${inputClass} min-h-[110px] resize-y`}
                     />
                   </Field>
 
@@ -378,7 +388,9 @@ function StatCard({ title, value }: { title: string; value: string }) {
       : "from-[#080808] via-[#221600] to-[#080808] border-yellow-500/20 text-yellow-300";
 
   return (
-    <div className={`rounded-2xl border bg-gradient-to-r p-5 ${color}`}>
+    <div
+      className={`rounded-[24px] border bg-gradient-to-r p-5 shadow-[0_10px_28px_rgba(0,0,0,0.28)] ${color}`}
+    >
       <p className="text-sm font-semibold text-gray-300">{title}</p>
       <p className="mt-3 text-4xl font-extrabold">{value}</p>
     </div>
