@@ -504,15 +504,15 @@ export default function DebanNonAutorisePage() {
             </div>
 
             <div className="mt-5 space-y-4">
-              {filteredCategories.map((category, index) => (
-                <ReasonAccordion
-                  key={category.id}
-                  category={category}
-                  reasons={category.reasons}
-                  search={search}
-                  defaultOpen={index === 0 || Boolean(search.trim())}
-                />
-              ))}
+              {filteredCategories.map((category) => (
+  <ReasonAccordion
+    key={category.id}
+    category={category}
+    reasons={category.reasons}
+    search={search}
+    defaultOpen={false}
+  />
+))}
 
               {filteredCategories.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/60">
