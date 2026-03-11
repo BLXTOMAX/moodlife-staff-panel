@@ -76,7 +76,7 @@ function parseWeekLabelRange(label: string, fallbackYear: number) {
   const endDay = Number(match[3]);
   const endMonth = Number(match[4]);
 
-  let startYear = fallbackYear;
+  const startYear = fallbackYear;
   let endYear = fallbackYear;
 
   if (endMonth < startMonth) {
@@ -177,6 +177,7 @@ function StatCard({
 
 export default function AbsenceStaffPage() {
   const [canValidateAbsences, setCanValidateAbsences] = useState(false);
+  const [canDeleteAbsences, setCanDeleteAbsences] = useState(false);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [form, setForm] = useState({
     staffName: "",
@@ -215,6 +216,7 @@ export default function AbsenceStaffPage() {
 
         if (!sessionEmail) {
           setCanValidateAbsences(false);
+          setCanDeleteAbsences(false);
           await loadAbsences();
           return;
         }
@@ -227,15 +229,21 @@ export default function AbsenceStaffPage() {
         if (permissionError) {
           console.error("Erreur lecture permissions absence :", permissionError);
           setCanValidateAbsences(false);
+          setCanDeleteAbsences(false);
         } else {
           const permissions = (permissionRows || []).map((row) => row.permission);
-          setCanValidateAbsences(permissions.includes("absence-validation"));
+          const hasMailAccess = permissions.includes("Mail Accès");
+          const hasAbsenceValidation = permissions.includes("absence-validation");
+
+          setCanValidateAbsences(hasMailAccess || hasAbsenceValidation);
+          setCanDeleteAbsences(hasMailAccess || hasAbsenceValidation);
         }
 
         await loadAbsences();
       } catch (error) {
         console.error("Erreur initialisation absence :", error);
         setCanValidateAbsences(false);
+        setCanDeleteAbsences(false);
       }
     }
 
@@ -363,6 +371,80 @@ export default function AbsenceStaffPage() {
     }
   }
 
+  async function removeValidatedAbsenceFromHeures(absence: Absence) {
+    const { data: heuresRows, error } = await supabase
+      .from("heures_staff")
+      .select(
+        "id, semaine, staff, lundi, mardi, mercredi, jeudi, vendredi, samedi, dimanche"
+      );
+
+    if (error) {
+      console.error("Erreur lecture heures_staff pour suppression absence :", error);
+      return;
+    }
+
+    const allRows = (heuresRows || []) as HeuresStaffRow[];
+
+    const matchingStaffRows = allRows.filter(
+      (row) =>
+        normalizeStaffName(row.staff) === normalizeStaffName(absence.staffName)
+    );
+
+    if (matchingStaffRows.length === 0) {
+      console.warn(
+        "Aucune ligne heures_staff trouvée pour le staff :",
+        absence.staffName
+      );
+      return;
+    }
+
+    const distinctWeekLabels = Array.from(
+      new Set(
+        matchingStaffRows.map((row) => (row.semaine || "").trim()).filter(Boolean)
+      )
+    );
+
+    const updatesByRowId = new Map<number, Partial<HeuresStaffRow>>();
+
+    for (const date of eachDateBetween(absence.startDate, absence.endDate)) {
+      const weekLabel = findWeekLabelForDate(distinctWeekLabels, date);
+      if (!weekLabel) continue;
+
+      const rowForWeek = matchingStaffRows.find(
+        (row) =>
+          (row.semaine || "").trim() === weekLabel &&
+          normalizeStaffName(row.staff) === normalizeStaffName(absence.staffName)
+      );
+
+      if (!rowForWeek) continue;
+
+      const dayField = DAY_FIELD_BY_INDEX[date.getDay()];
+      const currentValue = String(rowForWeek[dayField] || "").trim().toLowerCase();
+
+      if (currentValue !== "imprévu") {
+        continue;
+      }
+
+      const currentUpdate = updatesByRowId.get(rowForWeek.id) || {};
+      currentUpdate[dayField] = "";
+      updatesByRowId.set(rowForWeek.id, currentUpdate);
+    }
+
+    for (const [rowId, fieldsToUpdate] of updatesByRowId.entries()) {
+      const { error: updateError } = await supabase
+        .from("heures_staff")
+        .update(fieldsToUpdate)
+        .eq("id", rowId);
+
+      if (updateError) {
+        console.error(
+          `Erreur suppression Imprévu heures_staff ligne ${rowId} :`,
+          updateError
+        );
+      }
+    }
+  }
+
   async function updateAbsenceStatus(
     id: string,
     status: "Validée" | "Refusée"
@@ -387,6 +469,35 @@ export default function AbsenceStaffPage() {
 
     if (status === "Validée") {
       await applyValidatedAbsenceToHeures(absence);
+    }
+
+    await loadAbsences();
+  }
+
+  async function deleteAbsence(absence: Absence) {
+    if (!canDeleteAbsences) {
+      alert("Tu n'as pas la permission pour supprimer une absence.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Supprimer l'absence de ${absence.staffName} du ${formatDate(
+        absence.startDate
+      )} au ${formatDate(absence.endDate)} ?`
+    );
+
+    if (!confirmed) return;
+
+    if (absence.status === "Validée") {
+      await removeValidatedAbsenceFromHeures(absence);
+    }
+
+    const { error } = await supabase.from("absences").delete().eq("id", absence.id);
+
+    if (error) {
+      console.error("Erreur suppression absence :", error);
+      alert("Erreur lors de la suppression de l'absence.");
+      return;
     }
 
     await loadAbsences();
@@ -505,7 +616,11 @@ export default function AbsenceStaffPage() {
               Important
             </span>
             <p>
-              Le nom du staff doit être écrit <span className="font-bold">exactement pareil que sur Discord</span> pour que l’absence validée puisse remplir automatiquement{" "}
+              Le nom du staff doit être écrit{" "}
+              <span className="font-bold">
+                exactement pareil que sur Discord
+              </span>{" "}
+              pour que l’absence validée puisse remplir automatiquement{" "}
               <span className="font-bold">Heures staff</span>.
             </p>
             <p className="mt-2 text-amber-100/85">
@@ -527,7 +642,8 @@ export default function AbsenceStaffPage() {
                 placeholder="Ex : [A] Tom"
               />
               <p className="mt-2 text-xs leading-5 text-yellow-200/70">
-                Mets exactement le même nom que sur Discord, avec les crochets et le grade si besoin.
+                Mets exactement le même nom que sur Discord, avec les crochets
+                et le grade si besoin.
               </p>
             </div>
 
@@ -685,6 +801,16 @@ export default function AbsenceStaffPage() {
                                 </button>
                               </div>
                             )}
+
+                          {canDeleteAbsences && (
+                            <button
+                              type="button"
+                              onClick={() => deleteAbsence(absence)}
+                              className="rounded-xl border border-red-400/15 bg-red-500/15 px-3 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/25"
+                            >
+                              Supprimer
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
