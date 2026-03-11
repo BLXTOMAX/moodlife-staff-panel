@@ -483,21 +483,14 @@ export default function HeuresStaffPage() {
                                 className={`${inputClass} border-purple-500/30 bg-purple-950/10`}
                               />
 
-                              <div className="flex flex-col gap-2">
-                                <button
-                                  onClick={() => saveRow()}
-                                  className="rounded-xl border border-green-600/60 bg-green-950/50 px-4 py-3 font-semibold text-green-300 transition hover:bg-green-900/60"
-                                >
-                                  Sauvegarder
-                                </button>
-
-                                <button
-                                  onClick={() => deleteRow(row.id)}
-                                  className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
-                                >
-                                  Suppr.
-                                </button>
-                              </div>
+                              <div>
+  <button
+    onClick={() => deleteRow(row.id)}
+    className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
+  >
+    Suppr.
+  </button>
+</div>
                             </div>
                           );
                         })}
