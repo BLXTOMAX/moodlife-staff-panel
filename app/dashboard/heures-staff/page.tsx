@@ -59,32 +59,11 @@ const ROLE_ORDER = [
 export default function HeuresStaffPage() {
   const [rows, setRows] = useState<HeuresRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingAll, setSavingAll] = useState(false);
 
   useEffect(() => {
-  loadRows();
-
-  const channel = supabase
-    .channel("heures-staff-live-v2")
-    .on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "heures_staff" },
-      async () => {
-        await loadRows();
-      }
-    )
-    .on(
-      "postgres_changes",
-      { event: "DELETE", schema: "public", table: "heures_staff" },
-      async () => {
-        await loadRows();
-      }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, []);
+    loadRows();
+  }, []);
 
   async function loadRows() {
     setLoading(true);
@@ -131,103 +110,162 @@ export default function HeuresStaffPage() {
 
     if (error) {
       console.error("Erreur ajout heures staff :", error);
+      return;
     }
+
+    await loadRows();
   }
 
   async function deleteRow(id: number) {
-  const previous = rows;
-  setRows((prev) => prev.filter((row) => row.id !== id));
+    const previous = rows;
+    setRows((prev) => prev.filter((row) => row.id !== id));
 
-  const { error } = await supabase.from("heures_staff").delete().eq("id", id);
+    const { error } = await supabase.from("heures_staff").delete().eq("id", id);
 
-  if (error) {
-    console.error("Erreur suppression heures staff :", error);
-    setRows(previous);
-  }
-}
+    if (error) {
+      console.error("Erreur suppression heures staff :", error);
+      setRows(previous);
+      return;
+    }
 
-function updateRow(
-  id: number,
-  field: keyof HeuresRow,
-  value: string | number
-) {
-  setRows((prev) =>
-    prev.map((row) => {
-      if (row.id !== id) return row;
-
-      const nextRow: HeuresRow = {
-        ...row,
-        [field]: value,
-      } as HeuresRow;
-
-      const totalMinutes = computeTotalMinutes(nextRow);
-      const totalFormatted = formatMinutes(totalMinutes);
-      const totalReports = computeTotalReports(nextRow);
-      const paye = computePaye(nextRow.role, nextRow.staff, totalMinutes);
-
-      return {
-        ...nextRow,
-        total_heures: totalFormatted,
-        total_reports: totalReports,
-        paye,
-      };
-    })
-  );
-}
-
-async function saveRow(id: number) {
-  const row = rows.find((r) => r.id === id);
-  if (!row) return;
-
-  const totalMinutes = computeTotalMinutes(row);
-  const totalFormatted = formatMinutes(totalMinutes);
-  const totalReports = computeTotalReports(row);
-  const paye = computePaye(row.role, row.staff, totalMinutes);
-
-  const payload = {
-    semaine: row.semaine,
-    staff: row.staff,
-    role: row.role,
-    lundi: row.lundi,
-    mardi: row.mardi,
-    mercredi: row.mercredi,
-    jeudi: row.jeudi,
-    vendredi: row.vendredi,
-    samedi: row.samedi,
-    dimanche: row.dimanche,
-    reports_lundi: row.reports_lundi,
-    reports_mardi: row.reports_mardi,
-    reports_mercredi: row.reports_mercredi,
-    reports_jeudi: row.reports_jeudi,
-    reports_vendredi: row.reports_vendredi,
-    reports_samedi: row.reports_samedi,
-    reports_dimanche: row.reports_dimanche,
-    total_reports: totalReports,
-    total_heures: totalFormatted,
-    paye,
-    auteur: row.auteur,
-  };
-
-  const { error } = await supabase
-    .from("heures_staff")
-    .update(payload)
-    .eq("id", id);
-
-  if (error) {
-    console.error("Erreur sauvegarde heures staff :", error);
     await loadRows();
   }
-}
 
-async function clearAll() {
-  const ok = window.confirm("Tu veux vraiment vider toutes les heures staff ?");
-  if (!ok) return;
+  function updateRow(
+    id: number,
+    field: keyof HeuresRow,
+    value: string | number
+  ) {
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== id) return row;
 
-  const { error } = await supabase.from("heures_staff").delete().neq("id", 0);
-  if (error) {
-    console.error("Erreur clear heures staff :", error);
+        const nextRow: HeuresRow = {
+          ...row,
+          [field]: value,
+        } as HeuresRow;
+
+        const totalMinutes = computeTotalMinutes(nextRow);
+        const totalFormatted = formatMinutes(totalMinutes);
+        const totalReports = computeTotalReports(nextRow);
+        const paye = computePaye(nextRow.role, nextRow.staff, totalMinutes);
+
+        return {
+          ...nextRow,
+          total_heures: totalFormatted,
+          total_reports: totalReports,
+          paye,
+        };
+      })
+    );
   }
-}
+
+  async function saveRow(id: number) {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+
+    const totalMinutes = computeTotalMinutes(row);
+    const totalFormatted = formatMinutes(totalMinutes);
+    const totalReports = computeTotalReports(row);
+    const paye = computePaye(row.role, row.staff, totalMinutes);
+
+    const payload = {
+      semaine: row.semaine,
+      staff: row.staff,
+      role: row.role,
+      lundi: row.lundi,
+      mardi: row.mardi,
+      mercredi: row.mercredi,
+      jeudi: row.jeudi,
+      vendredi: row.vendredi,
+      samedi: row.samedi,
+      dimanche: row.dimanche,
+      reports_lundi: row.reports_lundi,
+      reports_mardi: row.reports_mardi,
+      reports_mercredi: row.reports_mercredi,
+      reports_jeudi: row.reports_jeudi,
+      reports_vendredi: row.reports_vendredi,
+      reports_samedi: row.reports_samedi,
+      reports_dimanche: row.reports_dimanche,
+      total_reports: totalReports,
+      total_heures: totalFormatted,
+      paye,
+      auteur: row.auteur,
+    };
+
+    const { error } = await supabase
+      .from("heures_staff")
+      .update(payload)
+      .eq("id", id);
+
+    if (error) {
+      console.error("Erreur sauvegarde heures staff :", error);
+      await loadRows();
+      return;
+    }
+
+    await loadRows();
+  }
+
+  async function saveAllRows() {
+    setSavingAll(true);
+
+    for (const row of rows) {
+      const totalMinutes = computeTotalMinutes(row);
+      const totalFormatted = formatMinutes(totalMinutes);
+      const totalReports = computeTotalReports(row);
+      const paye = computePaye(row.role, row.staff, totalMinutes);
+
+      const payload = {
+        semaine: row.semaine,
+        staff: row.staff,
+        role: row.role,
+        lundi: row.lundi,
+        mardi: row.mardi,
+        mercredi: row.mercredi,
+        jeudi: row.jeudi,
+        vendredi: row.vendredi,
+        samedi: row.samedi,
+        dimanche: row.dimanche,
+        reports_lundi: row.reports_lundi,
+        reports_mardi: row.reports_mardi,
+        reports_mercredi: row.reports_mercredi,
+        reports_jeudi: row.reports_jeudi,
+        reports_vendredi: row.reports_vendredi,
+        reports_samedi: row.reports_samedi,
+        reports_dimanche: row.reports_dimanche,
+        total_reports: totalReports,
+        total_heures: totalFormatted,
+        paye,
+        auteur: row.auteur,
+      };
+
+      const { error } = await supabase
+        .from("heures_staff")
+        .update(payload)
+        .eq("id", row.id);
+
+      if (error) {
+        console.error(`Erreur sauvegarde ligne ${row.id} :`, error);
+      }
+    }
+
+    setSavingAll(false);
+    await loadRows();
+  }
+
+  async function clearAll() {
+    const ok = window.confirm("Tu veux vraiment vider toutes les heures staff ?");
+    if (!ok) return;
+
+    const { error } = await supabase.from("heures_staff").delete().neq("id", 0);
+    if (error) {
+      console.error("Erreur clear heures staff :", error);
+      return;
+    }
+
+    await loadRows();
+  }
 
   const totalStaff = rows.length;
   const totalMinutes = useMemo(
@@ -288,6 +326,14 @@ async function clearAll() {
             </button>
 
             <button
+              onClick={saveAllRows}
+              disabled={savingAll}
+              className="rounded-2xl bg-green-500 px-5 py-3 font-bold text-black transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {savingAll ? "Sauvegarde..." : "💾 Sauvegarder tout"}
+            </button>
+
+            <button
               onClick={clearAll}
               className="rounded-2xl border border-red-700 bg-red-950/60 px-5 py-3 font-bold text-red-300 transition hover:bg-red-900/60"
             >
@@ -299,8 +345,16 @@ async function clearAll() {
 
       <div className="grid gap-4 px-6 py-6 md:grid-cols-4">
         <StatCard title="Staff" value={String(totalStaff)} tone="yellow" />
-        <StatCard title="Heures totales" value={formatMinutes(totalMinutes)} tone="green" />
-        <StatCard title="Reports totaux" value={String(totalReportsGlobal)} tone="blue" />
+        <StatCard
+          title="Heures totales"
+          value={formatMinutes(totalMinutes)}
+          tone="green"
+        />
+        <StatCard
+          title="Reports totaux"
+          value={String(totalReportsGlobal)}
+          tone="blue"
+        />
         <StatCard title="Semaine" value={semaineAffichee} tone="purple" />
       </div>
 
@@ -324,7 +378,8 @@ async function clearAll() {
                       {role}
                     </h2>
                     <p className="mt-1 text-sm text-gray-300">
-                      {group.length} staff{group.length > 1 ? "s" : ""} dans cette catégorie
+                      {group.length} staff{group.length > 1 ? "s" : ""} dans cette
+                      catégorie
                     </p>
                   </div>
 
@@ -373,7 +428,11 @@ async function clearAll() {
                         {group.map((row) => {
                           const totalMinutesRow = computeTotalMinutes(row);
                           const totalReportsRow = computeTotalReports(row);
-                          const paye = computePaye(row.role, row.staff, totalMinutesRow);
+                          const paye = computePaye(
+                            row.role,
+                            row.staff,
+                            totalMinutesRow
+                          );
 
                           return (
                             <div
@@ -382,14 +441,18 @@ async function clearAll() {
                             >
                               <input
                                 value={row.staff || ""}
-                                onChange={(e) => updateRow(row.id, "staff", e.target.value)}
+                                onChange={(e) =>
+                                  updateRow(row.id, "staff", e.target.value)
+                                }
                                 placeholder="Nom du staff"
                                 className={`${inputClass} border-yellow-500/30`}
                               />
 
                               <input
                                 value={row.semaine || ""}
-                                onChange={(e) => updateRow(row.id, "semaine", e.target.value)}
+                                onChange={(e) =>
+                                  updateRow(row.id, "semaine", e.target.value)
+                                }
                                 placeholder="01/03 au 15/03"
                                 className={`${inputClass} border-yellow-500/30`}
                               />
@@ -398,7 +461,9 @@ async function clearAll() {
                                 <input
                                   key={String(day)}
                                   value={String(row[day] || "")}
-                                  onChange={(e) => updateRow(row.id, day, e.target.value)}
+                                  onChange={(e) =>
+                                    updateRow(row.id, day, e.target.value)
+                                  }
                                   placeholder="2h30"
                                   className={`${inputClass} border-green-500/30 bg-green-950/10`}
                                 />
@@ -408,7 +473,9 @@ async function clearAll() {
                                 <input
                                   key={String(day)}
                                   value={String(row[day] || "")}
-                                  onChange={(e) => updateRow(row.id, day, e.target.value)}
+                                  onChange={(e) =>
+                                    updateRow(row.id, day, e.target.value)
+                                  }
                                   placeholder="0"
                                   className={`${inputClass} border-blue-500/30 bg-blue-950/10`}
                                 />
@@ -433,27 +500,29 @@ async function clearAll() {
                               </div>
 
                               <input
-  value={row.auteur || ""}
-  onChange={(e) => updateRow(row.id, "auteur", e.target.value)}
-  placeholder="Auteur"
-  className={`${inputClass} border-purple-500/30 bg-purple-950/10`}
-/>
+                                value={row.auteur || ""}
+                                onChange={(e) =>
+                                  updateRow(row.id, "auteur", e.target.value)
+                                }
+                                placeholder="Auteur"
+                                className={`${inputClass} border-purple-500/30 bg-purple-950/10`}
+                              />
 
-<div className="flex flex-col gap-2">
-  <button
-    onClick={() => saveRow(row.id)}
-    className="rounded-xl border border-green-600/60 bg-green-950/50 px-4 py-3 font-semibold text-green-300 transition hover:bg-green-900/60"
-  >
-    Sauvegarder
-  </button>
+                              <div className="flex flex-col gap-2">
+                                <button
+                                  onClick={() => saveRow(row.id)}
+                                  className="rounded-xl border border-green-600/60 bg-green-950/50 px-4 py-3 font-semibold text-green-300 transition hover:bg-green-900/60"
+                                >
+                                  Sauvegarder
+                                </button>
 
-  <button
-    onClick={() => deleteRow(row.id)}
-    className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
-  >
-    Suppr.
-  </button>
-</div>
+                                <button
+                                  onClick={() => deleteRow(row.id)}
+                                  className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
+                                >
+                                  Suppr.
+                                </button>
+                              </div>
                             </div>
                           );
                         })}
@@ -563,10 +632,14 @@ function StatCard({
   tone: "yellow" | "green" | "blue" | "purple";
 }) {
   const tones = {
-    yellow: "border-yellow-500/20 from-[#080808] via-[#221600] to-[#080808] text-yellow-300",
-    green: "border-green-500/20 from-[#080808] via-[#0d1c12] to-[#080808] text-green-300",
-    blue: "border-blue-500/20 from-[#080808] via-[#0b1630] to-[#080808] text-blue-300",
-    purple: "border-purple-500/20 from-[#080808] via-[#1a1030] to-[#080808] text-purple-300",
+    yellow:
+      "border-yellow-500/20 from-[#080808] via-[#221600] to-[#080808] text-yellow-300",
+    green:
+      "border-green-500/20 from-[#080808] via-[#0d1c12] to-[#080808] text-green-300",
+    blue:
+      "border-blue-500/20 from-[#080808] via-[#0b1630] to-[#080808] text-blue-300",
+    purple:
+      "border-purple-500/20 from-[#080808] via-[#1a1030] to-[#080808] text-purple-300",
   };
 
   return (
