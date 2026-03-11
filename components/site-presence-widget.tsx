@@ -64,7 +64,7 @@ export default function SitePresenceWidget() {
 
     const interval = setInterval(() => {
       loadPresence();
-    }, 15000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
