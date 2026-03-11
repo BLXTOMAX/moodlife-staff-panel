@@ -1,7 +1,7 @@
 "use client";
-console.log("SIDEBAR LOADED");
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -188,9 +188,15 @@ export default function Sidebar() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,215,0,0.12),transparent_30%)]" />
 
           <div className="relative flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400 text-3xl font-black text-black shadow-[0_8px_20px_rgba(250,204,21,0.18)]">
-              M
-            </div>
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-yellow-400/20 bg-yellow-400 shadow-[0_8px_20px_rgba(250,204,21,0.18)]">
+  <Image
+    src="/logo-moodlife.png"
+    alt="MoodLife"
+    width={56}
+    height={56}
+    className="h-full w-full object-cover"
+  />
+</div>
 
             <div className="min-w-0">
               <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/15 bg-yellow-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-yellow-300">
