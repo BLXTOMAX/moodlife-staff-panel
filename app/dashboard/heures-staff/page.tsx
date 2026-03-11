@@ -58,6 +58,16 @@ const ROLE_ORDER = [
   "Gérant-Staff",
 ] as const;
 
+const DAY_LABELS = [
+  { key: "lundi", short: "Lun" },
+  { key: "mardi", short: "Mar" },
+  { key: "mercredi", short: "Mer" },
+  { key: "jeudi", short: "Jeu" },
+  { key: "vendredi", short: "Ven" },
+  { key: "samedi", short: "Sam" },
+  { key: "dimanche", short: "Dim" },
+] as const;
+
 export default function HeuresStaffPage() {
   const [rows, setRows] = useState<HeuresRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -349,6 +359,8 @@ export default function HeuresStaffPage() {
       .slice(0, 10);
   }, [visibleRows]);
 
+  const weekDates = useMemo(() => buildWeekDateLabels(activeWeek), [activeWeek]);
+
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="relative overflow-hidden border-b border-yellow-500/15 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.14),transparent_28%),linear-gradient(135deg,rgba(0,0,0,0.98),rgba(20,20,20,0.92),rgba(10,10,10,0.98))]">
@@ -421,7 +433,7 @@ export default function HeuresStaffPage() {
       <div className="grid gap-4 px-6 py-6 md:grid-cols-4">
         <StatCard title="Staff" value={String(totalStaff)} tone="yellow" />
         <StatCard
-          title="Heures totalaux"
+          title="Heures totales"
           value={formatMinutes(totalMinutes)}
           tone="green"
         />
@@ -574,17 +586,19 @@ export default function HeuresStaffPage() {
 
                 {isOpen && (
                   <div className="overflow-x-auto">
-                    <div className="min-w-[2350px]">
-                      <div className="grid grid-cols-[260px_170px_repeat(7,110px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 border-b border-yellow-500/10 bg-[#0b0b0b] px-4 py-4 text-xs font-bold uppercase text-yellow-300">
+                    <div className="min-w-[2450px]">
+                      <div className="grid grid-cols-[260px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 border-b border-yellow-500/10 bg-[#0b0b0b] px-4 py-4 text-xs font-bold uppercase text-yellow-300">
                         <div>Nom du staff</div>
                         <div>Semaine</div>
-                        <div>Lun h</div>
-                        <div>Mar h</div>
-                        <div>Mer h</div>
-                        <div>Jeu h</div>
-                        <div>Ven h</div>
-                        <div>Sam h</div>
-                        <div>Dim h</div>
+
+                        {DAY_LABELS.map((day, index) => (
+                          <div key={day.key} className="leading-4">
+                            <div>{day.short} h</div>
+                            <div className="mt-1 text-[10px] font-medium text-white/45 normal-case">
+                              {weekDates[index] || "--/--"}
+                            </div>
+                          </div>
+                        ))}
 
                         <div>R lun</div>
                         <div>R mar</div>
@@ -619,7 +633,7 @@ export default function HeuresStaffPage() {
                             return (
                               <div
                                 key={row.id}
-                                className={`grid grid-cols-[260px_170px_repeat(7,110px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4 ${
+                                className={`grid grid-cols-[260px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4 ${
                                   row.isNew ? "bg-yellow-500/5" : ""
                                 }`}
                               >
@@ -641,17 +655,27 @@ export default function HeuresStaffPage() {
                                   className={`${inputClass} border-yellow-500/30`}
                                 />
 
-                                {HOUR_DAYS.map((day) => (
-                                  <input
-                                    key={String(day)}
-                                    value={String(row[day] || "")}
-                                    onChange={(e) =>
-                                      updateRow(row.id, day, e.target.value)
-                                    }
-                                    placeholder="2h30"
-                                    className={`${inputClass} border-green-500/30 bg-green-950/10`}
-                                  />
-                                ))}
+                                {HOUR_DAYS.map((day) => {
+                                  const isImprevu =
+                                    String(row[day] || "").trim().toLowerCase() ===
+                                    "imprévu";
+
+                                  return (
+                                    <input
+                                      key={String(day)}
+                                      value={String(row[day] || "")}
+                                      onChange={(e) =>
+                                        updateRow(row.id, day, e.target.value)
+                                      }
+                                      placeholder="2h30"
+                                      className={
+                                        isImprevu
+                                          ? `${inputClass} border-amber-400/40 bg-amber-500/10 text-amber-200 font-bold shadow-[0_0_0_1px_rgba(251,191,36,0.08)]`
+                                          : `${inputClass} border-green-500/30 bg-green-950/10`
+                                      }
+                                    />
+                                  );
+                                })}
 
                                 {REPORT_DAYS.map((day) => (
                                   <input
@@ -804,6 +828,51 @@ function computePaye(role: string, staffName: string, totalMinutes: number) {
   return base + (hasBonus ? 200 : 0);
 }
 
+function parseWeekLabel(label: string) {
+  const match = (label || "")
+    .trim()
+    .match(/^(\d{2})\/(\d{2})\s+au\s+(\d{2})\/(\d{2})$/i);
+
+  if (!match) return null;
+
+  const startDay = Number(match[1]);
+  const startMonth = Number(match[2]);
+  const endDay = Number(match[3]);
+  const endMonth = Number(match[4]);
+  const nowYear = new Date().getFullYear();
+
+  let startYear = nowYear;
+  let endYear = nowYear;
+
+  if (endMonth < startMonth) {
+    endYear = nowYear + 1;
+  }
+
+  return {
+    start: new Date(startYear, startMonth - 1, startDay),
+    end: new Date(endYear, endMonth - 1, endDay),
+  };
+}
+
+function buildWeekDateLabels(label: string) {
+  const parsed = parseWeekLabel(label);
+  if (!parsed) return Array(7).fill("");
+
+  const dates: string[] = [];
+  const current = new Date(parsed.start);
+
+  for (let i = 0; i < 7; i += 1) {
+    dates.push(
+      `${String(current.getDate()).padStart(2, "0")}/${String(
+        current.getMonth() + 1
+      ).padStart(2, "0")}`
+    );
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
+}
+
 function StatCard({
   title,
   value,
@@ -825,7 +894,9 @@ function StatCard({
   };
 
   return (
-    <div className={`rounded-[24px] border bg-gradient-to-r p-5 shadow-[0_10px_28px_rgba(0,0,0,0.28)] ${tones[tone]}`}>
+    <div
+      className={`rounded-[24px] border bg-gradient-to-r p-5 shadow-[0_10px_28px_rgba(0,0,0,0.28)] ${tones[tone]}`}
+    >
       <p className="text-sm font-semibold text-gray-300">{title}</p>
       <p className="mt-3 text-3xl font-extrabold">{value}</p>
     </div>

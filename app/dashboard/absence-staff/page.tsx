@@ -12,11 +12,116 @@ type Absence = {
   status: "En attente" | "Validée" | "Refusée";
 };
 
+type HeuresStaffRow = {
+  id: number;
+  semaine: string;
+  staff: string;
+  lundi: string;
+  mardi: string;
+  mercredi: string;
+  jeudi: string;
+  vendredi: string;
+  samedi: string;
+  dimanche: string;
+};
+
 const SESSION_STORAGE_KEY = "moodlife-session-email";
+
+const DAY_FIELD_BY_INDEX = [
+  "dimanche",
+  "lundi",
+  "mardi",
+  "mercredi",
+  "jeudi",
+  "vendredi",
+  "samedi",
+] as const;
 
 function formatDate(date: string) {
   if (!date) return "--";
   return new Date(date).toLocaleDateString("fr-FR");
+}
+
+function normalizeStaffName(value: string) {
+  return (value || "").trim().toLowerCase();
+}
+
+function toLocalDateOnly(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
+}
+
+function eachDateBetween(start: string, end: string) {
+  const dates: Date[] = [];
+  const current = toLocalDateOnly(start);
+  const last = toLocalDateOnly(end);
+
+  while (current <= last) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
+}
+
+function parseWeekLabelRange(label: string, fallbackYear: number) {
+  const match = (label || "")
+    .trim()
+    .match(/^(\d{2})\/(\d{2})\s+au\s+(\d{2})\/(\d{2})$/i);
+
+  if (!match) return null;
+
+  const startDay = Number(match[1]);
+  const startMonth = Number(match[2]);
+  const endDay = Number(match[3]);
+  const endMonth = Number(match[4]);
+
+  let startYear = fallbackYear;
+  let endYear = fallbackYear;
+
+  if (endMonth < startMonth) {
+    endYear = fallbackYear + 1;
+  }
+
+  const start = new Date(startYear, startMonth - 1, startDay);
+  const end = new Date(endYear, endMonth - 1, endDay);
+
+  return { start, end };
+}
+
+function findWeekLabelForDate(weekLabels: string[], targetDate: Date) {
+  const targetYear = targetDate.getFullYear();
+
+  for (const label of weekLabels) {
+    const parsedCurrentYear = parseWeekLabelRange(label, targetYear);
+    if (
+      parsedCurrentYear &&
+      targetDate >= parsedCurrentYear.start &&
+      targetDate <= parsedCurrentYear.end
+    ) {
+      return label;
+    }
+
+    const parsedPreviousYear = parseWeekLabelRange(label, targetYear - 1);
+    if (
+      parsedPreviousYear &&
+      targetDate >= parsedPreviousYear.start &&
+      targetDate <= parsedPreviousYear.end
+    ) {
+      return label;
+    }
+
+    const parsedNextYear = parseWeekLabelRange(label, targetYear + 1);
+    if (
+      parsedNextYear &&
+      targetDate >= parsedNextYear.start &&
+      targetDate <= parsedNextYear.end
+    ) {
+      return label;
+    }
+  }
+
+  return null;
 }
 
 function getStatusClasses(status: Absence["status"]) {
@@ -73,7 +178,6 @@ function StatCard({
 export default function AbsenceStaffPage() {
   const [canValidateAbsences, setCanValidateAbsences] = useState(false);
   const [absences, setAbsences] = useState<Absence[]>([]);
-
   const [form, setForm] = useState({
     staffName: "",
     reason: "",
@@ -185,10 +289,91 @@ export default function AbsenceStaffPage() {
     await loadAbsences();
   }
 
+  async function applyValidatedAbsenceToHeures(absence: Absence) {
+    const { data: heuresRows, error } = await supabase
+      .from("heures_staff")
+      .select(
+        "id, semaine, staff, lundi, mardi, mercredi, jeudi, vendredi, samedi, dimanche"
+      );
+
+    if (error) {
+      console.error("Erreur lecture heures_staff pour absence validée :", error);
+      return;
+    }
+
+    const allRows = (heuresRows || []) as HeuresStaffRow[];
+
+    const matchingStaffRows = allRows.filter(
+      (row) =>
+        normalizeStaffName(row.staff) === normalizeStaffName(absence.staffName)
+    );
+
+    if (matchingStaffRows.length === 0) {
+      console.warn(
+        "Aucune ligne heures_staff trouvée pour le staff :",
+        absence.staffName
+      );
+      return;
+    }
+
+    const distinctWeekLabels = Array.from(
+      new Set(
+        matchingStaffRows.map((row) => (row.semaine || "").trim()).filter(Boolean)
+      )
+    );
+
+    const updatesByRowId = new Map<number, Partial<HeuresStaffRow>>();
+
+    for (const date of eachDateBetween(absence.startDate, absence.endDate)) {
+      const weekLabel = findWeekLabelForDate(distinctWeekLabels, date);
+      if (!weekLabel) continue;
+
+      const rowForWeek = matchingStaffRows.find(
+        (row) =>
+          (row.semaine || "").trim() === weekLabel &&
+          normalizeStaffName(row.staff) === normalizeStaffName(absence.staffName)
+      );
+
+      if (!rowForWeek) continue;
+
+      const dayField = DAY_FIELD_BY_INDEX[date.getDay()];
+      const currentValue = rowForWeek[dayField] || "";
+
+      if (String(currentValue).trim().toLowerCase() === "imprévu") {
+        continue;
+      }
+
+      const currentUpdate = updatesByRowId.get(rowForWeek.id) || {};
+      currentUpdate[dayField] = "Imprévu";
+      updatesByRowId.set(rowForWeek.id, currentUpdate);
+    }
+
+    for (const [rowId, fieldsToUpdate] of updatesByRowId.entries()) {
+      const { error: updateError } = await supabase
+        .from("heures_staff")
+        .update(fieldsToUpdate)
+        .eq("id", rowId);
+
+      if (updateError) {
+        console.error(
+          `Erreur mise à jour heures_staff ligne ${rowId} :`,
+          updateError
+        );
+      }
+    }
+  }
+
   async function updateAbsenceStatus(
     id: string,
     status: "Validée" | "Refusée"
   ) {
+    const absence = absences.find((item) => item.id === id);
+
+    if (!absence) {
+      alert("Absence introuvable.");
+      return;
+    }
+
     const { error } = await supabase
       .from("absences")
       .update({ status })
@@ -198,6 +383,10 @@ export default function AbsenceStaffPage() {
       console.error("Erreur validation absence :", error);
       alert("Erreur lors de la mise à jour du statut.");
       return;
+    }
+
+    if (status === "Validée") {
+      await applyValidatedAbsenceToHeures(absence);
     }
 
     await loadAbsences();
@@ -253,7 +442,7 @@ export default function AbsenceStaffPage() {
             Gestion des absences
           </h1>
 
-          <div className="mt-4 h-px w-52 bg-gradient-to-r from-yellow-400 via-fuchsia-400/70 to-cyan-400/20" />
+          <div className="mt-4 h-px w-52 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
 
           <p className="mt-4 max-w-3xl text-sm leading-7 text-white/78 md:text-[15px]">
             Les absences doivent concerner une ou plusieurs journées complètes,
@@ -313,10 +502,14 @@ export default function AbsenceStaffPage() {
 
           <div className="relative mb-5 rounded-2xl border border-amber-300/20 bg-[linear-gradient(135deg,rgba(251,191,36,0.14),rgba(244,114,182,0.08))] p-4 text-sm leading-6 text-amber-100 shadow-[0_10px_22px_rgba(0,0,0,0.18)]">
             <span className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-100/90">
-              Info
+              Important
             </span>
             <p>
-              Important : ce formulaire concerne uniquement des journées complètes.
+              Le nom du staff doit être écrit <span className="font-bold">exactement pareil que sur Discord</span> pour que l’absence validée puisse remplir automatiquement{" "}
+              <span className="font-bold">Heures staff</span>.
+            </p>
+            <p className="mt-2 text-amber-100/85">
+              Exemple : <span className="font-bold">[A] Tom</span>
             </p>
           </div>
 
@@ -331,8 +524,11 @@ export default function AbsenceStaffPage() {
                 value={form.staffName}
                 onChange={handleChange}
                 className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-300/40 focus:bg-black/45 focus:shadow-[0_0_0_4px_rgba(250,204,21,0.08)]"
-                placeholder="Ex : Pariss"
+                placeholder="Ex : [A] Tom"
               />
+              <p className="mt-2 text-xs leading-5 text-yellow-200/70">
+                Mets exactement le même nom que sur Discord, avec les crochets et le grade si besoin.
+              </p>
             </div>
 
             <div>
