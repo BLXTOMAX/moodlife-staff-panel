@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { getSessionEmail, isOwner } from "@/lib/access";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/sidebar";
+import SitePresenceTracker from "@/components/site-presence-tracker";
 
 const ALL_ITEMS = [
   "/dashboard/info",
