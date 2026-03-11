@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { ReactNode } from "react";
+import SitePresenceTracker from "@/components/site-presence-tracker";
 
 export default function RootLayout({
   children,
@@ -8,7 +9,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body>{children}</body>
+      <body>
+        <SitePresenceTracker />
+        {children}
+      </body>
     </html>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import SitePresenceWidget from "@/components/site-presence-widget";
 import {
   Activity,
   ChevronRight,
@@ -296,6 +297,7 @@ export default function InfoPage() {
                 <Copy className="h-4 w-4" />
                 {copied ? "Copié" : "Copier"}
               </button>
+              <SitePresenceWidget />
             </div>
           </div>
         </div>
