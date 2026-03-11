@@ -421,7 +421,7 @@ export default function HeuresStaffPage() {
       <div className="grid gap-4 px-6 py-6 md:grid-cols-4">
         <StatCard title="Staff" value={String(totalStaff)} tone="yellow" />
         <StatCard
-          title="Heures totales"
+          title="Heures totalaux"
           value={formatMinutes(totalMinutes)}
           tone="green"
         />
