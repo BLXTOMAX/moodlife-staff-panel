@@ -23,12 +23,14 @@ function QuickCard({
   href,
   title,
   subtitle,
+  description,
   external = false,
   variant = "dark",
 }: {
   href: string;
   title: string;
   subtitle: string;
+  description?: string;
   external?: boolean;
   variant?: "dark" | "yellow" | "blue";
 }) {
@@ -48,13 +50,25 @@ function QuickCard({
     >
       <div className="absolute inset-0 bg-[linear-gradient(to_bottom_right,rgba(255,255,255,0.05),transparent)]" />
       <div className="relative">
-        <p
-          className={`text-sm ${
-            variant === "yellow" ? "text-black/70" : "text-white/80"
-          }`}
-        >
-          {subtitle}
-        </p>
+        <div>
+  <p
+    className={`text-sm ${
+      variant === "yellow" ? "text-black/70" : "text-white/80"
+    }`}
+  >
+    {subtitle}
+  </p>
+
+  {description && (
+    <p
+      className={`mt-1 text-xs ${
+        variant === "yellow" ? "text-black/70" : "text-white/70"
+      }`}
+    >
+      {description}
+    </p>
+  )}
+</div>
         <div className="mt-2 flex items-center justify-between gap-4">
           <p className="text-2xl font-black">{title}</p>
           <ChevronRight className="h-5 w-5 transition group-hover:translate-x-1" />
@@ -271,16 +285,18 @@ export default function InfoPage() {
   href="https://discord.gg/moodlife"
   title="Rejoindre le Discord"
   subtitle="Discord officiel"
+  description="Retrouvez les annonces, le support et la communauté MoodLife."
   external
   variant="blue"
 />
 
           <QuickCard
-            href="https://cfx.re/join/5g6lmd"
-            title="Se connecter au serveur"
-            subtitle="Connexion directe"
-            variant="yellow"
-          />
+  href="https://cfx.re/join/5g6lmd"
+  title="Se connecter au serveur"
+  subtitle="Connexion directe"
+  description="Cliquez ici pour rejoindre directement le serveur FiveM MoodLife."
+  variant="yellow"
+/>
 
           <div className="rounded-[28px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_25px_rgba(0,0,0,0.35)]">
             <div className="flex items-center gap-2 text-white/80">
