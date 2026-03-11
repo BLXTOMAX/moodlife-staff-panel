@@ -12,11 +12,14 @@ type RemonteeRow = {
   prevenu: string;
   auteur: string;
   date: string;
+  isNew?: boolean;
 };
 
 export default function RemonteesPage() {
   const [rows, setRows] = useState<RemonteeRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingAll, setSavingAll] = useState(false);
+  const [deletedIds, setDeletedIds] = useState<number[]>([]);
 
   useEffect(() => {
     loadRows();
@@ -51,14 +54,21 @@ export default function RemonteesPage() {
       return;
     }
 
-    setRows(data || []);
+    const cleanedRows = ((data || []) as RemonteeRow[]).map((row) => ({
+      ...row,
+      isNew: false,
+    }));
+
+    setRows(cleanedRows);
+    setDeletedIds([]);
     setLoading(false);
   }
 
-  async function addRow() {
+  function addRow() {
     const today = new Date().toISOString().slice(0, 10);
 
-    const { error } = await supabase.from("remontees_staff").insert({
+    const newRow: RemonteeRow = {
+      id: -Date.now() - Math.floor(Math.random() * 1000),
       staff_remonte: "",
       discord: "",
       type: "Négative",
@@ -66,59 +76,90 @@ export default function RemonteesPage() {
       prevenu: "Non",
       auteur: "",
       date: today,
-    });
+      isNew: true,
+    };
 
-    if (error) {
-      console.error("Erreur ajout remontée staff :", error);
-    }
+    setRows((prev) => [...prev, newRow]);
   }
 
-  async function updateRow(
-    id: number,
-    field: keyof RemonteeRow,
-    value: string
-  ) {
+  function updateRow(id: number, field: keyof RemonteeRow, value: string) {
     setRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
-
-    const { error } = await supabase
-      .from("remontees_staff")
-      .update({ [field]: value })
-      .eq("id", id);
-
-    if (error) {
-      console.error("Erreur update remontée staff :", error);
-      await loadRows();
-    }
   }
 
-  async function deleteRow(id: number) {
-    const previous = rows;
-    setRows((prev) => prev.filter((row) => row.id !== id));
+  function deleteRow(id: number) {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
 
-    const { error } = await supabase
-      .from("remontees_staff")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      console.error("Erreur suppression remontée staff :", error);
-      setRows(previous);
+    if (!row.isNew && id > 0) {
+      setDeletedIds((prev) => [...prev, id]);
     }
+
+    setRows((prev) => prev.filter((r) => r.id !== id));
   }
 
-  async function clearAll() {
+  function clearAll() {
     const ok = window.confirm("Tu veux vraiment vider toutes les remontées ?");
     if (!ok) return;
 
-    const { error } = await supabase
-      .from("remontees_staff")
-      .delete()
-      .neq("id", 0);
+    const idsToDelete = rows
+      .filter((row) => !row.isNew && row.id > 0)
+      .map((row) => row.id);
 
-    if (error) {
-      console.error("Erreur clear remontées staff :", error);
+    setDeletedIds((prev) => [...prev, ...idsToDelete]);
+    setRows([]);
+  }
+
+  async function saveAllRows() {
+    setSavingAll(true);
+
+    try {
+      for (const id of deletedIds) {
+        const { error } = await supabase
+          .from("remontees_staff")
+          .delete()
+          .eq("id", id);
+
+        if (error) {
+          console.error(`Erreur suppression remontée ${id} :`, error);
+        }
+      }
+
+      for (const row of rows) {
+        const payload = {
+          staff_remonte: row.staff_remonte,
+          discord: row.discord,
+          type: displayType(row.type),
+          description: row.description,
+          prevenu: row.prevenu || "Non",
+          auteur: row.auteur,
+          date: row.date,
+        };
+
+        if (row.isNew) {
+          const { error } = await supabase.from("remontees_staff").insert(payload);
+
+          if (error) {
+            console.error("Erreur insert remontée :", error);
+          }
+        } else {
+          const { error } = await supabase
+            .from("remontees_staff")
+            .update(payload)
+            .eq("id", row.id);
+
+          if (error) {
+            console.error(`Erreur update remontée ${row.id} :`, error);
+          }
+        }
+      }
+
+      await loadRows();
+    } catch (error) {
+      console.error("Erreur sauvegarde remontées staff :", error);
+    } finally {
+      setSavingAll(false);
     }
   }
 
@@ -158,6 +199,15 @@ export default function RemonteesPage() {
             >
               + Ajouter une remontée
             </button>
+
+            <button
+              onClick={saveAllRows}
+              disabled={savingAll}
+              className="rounded-2xl bg-green-500 px-5 py-3 font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {savingAll ? "Sauvegarde..." : "💾 Enregistrer"}
+            </button>
+
             <button
               onClick={clearAll}
               className="rounded-2xl border border-red-800 bg-red-950/60 px-5 py-3 font-bold text-red-300 transition hover:bg-red-900/60"
@@ -173,6 +223,15 @@ export default function RemonteesPage() {
         <StatCard title="Remontées négatives" value={String(negatives)} />
         <StatCard title="Remontées positives" value={String(positives)} />
         <StatCard title="Staff prévenus" value={String(prevenus)} />
+      </div>
+
+      <div className="px-6 pb-4">
+        <div className="flex justify-end">
+          <div className="rounded-xl border border-yellow-500/20 bg-[#0b0b0b] px-4 py-2 text-sm text-gray-300">
+            Les modifications restent locales jusqu’au clic sur{" "}
+            <span className="font-semibold text-yellow-300">Enregistrer</span>.
+          </div>
+        </div>
       </div>
 
       <div className="px-6 pb-10">
@@ -199,10 +258,10 @@ export default function RemonteesPage() {
                 <div
                   key={row.id}
                   className={`grid grid-cols-1 gap-4 px-4 py-4 xl:grid-cols-7 rounded-xl ${
-  normalizeType(row.type) === "positive"
-    ? "bg-green-950/10"
-    : "bg-red-950/10"
-}`}
+                    normalizeType(row.type) === "positive"
+                      ? "bg-green-950/10"
+                      : "bg-red-950/10"
+                  } ${row.isNew ? "ring-1 ring-yellow-500/20" : ""}`}
                 >
                   <Field label="Nom">
                     <input
@@ -231,10 +290,10 @@ export default function RemonteesPage() {
                       value={displayType(row.type)}
                       onChange={(e) => updateRow(row.id, "type", e.target.value)}
                       className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition placeholder:text-gray-500 focus:border-yellow-400/60 ${
-  normalizeType(row.type) === "positive"
-    ? "border-green-500/40 bg-green-950/20 text-green-300"
-    : "border-red-500/40 bg-red-950/20 text-red-300"
-}`}
+                        normalizeType(row.type) === "positive"
+                          ? "border-green-500/40 bg-green-950/20 text-green-300"
+                          : "border-red-500/40 bg-red-950/20 text-red-300"
+                      }`}
                     >
                       <option value="Négative">Négative</option>
                       <option value="Positive">Positive</option>
