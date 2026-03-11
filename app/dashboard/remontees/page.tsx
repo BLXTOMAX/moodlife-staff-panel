@@ -91,7 +91,8 @@ localStorage.removeItem(STORAGE_KEY);
 
 return (
 
-<div className="space-y-8">
+<div className="space-y-8 relative">
+  <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_bottom,rgba(255,200,0,0.04),transparent_70%)]" />
 
 {/* HEADER */}
 
