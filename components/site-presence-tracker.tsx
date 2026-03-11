@@ -10,10 +10,13 @@ export default function SitePresenceTracker() {
 
     console.log("TRACKER EMAIL =", email);
 
-    if (!email) return;
+    if (!email) {
+      console.log("Aucun email trouvé");
+      return;
+    }
 
     const markOnline = async () => {
-      const { error } = await supabase.from("site_presence").upsert({
+      const { data, error } = await supabase.from("site_presence").upsert({
         email,
         name: email,
         is_online: true,
@@ -21,8 +24,10 @@ export default function SitePresenceTracker() {
         last_seen: new Date().toISOString(),
       });
 
+      console.log("UPSERT RESULT =", { data, error });
+
       if (error) {
-        console.error("Erreur Supabase :", error);
+        console.error("Erreur Supabase =", error);
       } else {
         console.log("Utilisateur enregistré online");
       }
