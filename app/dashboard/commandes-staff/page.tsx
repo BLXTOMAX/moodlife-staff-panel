@@ -284,40 +284,34 @@ function AccordionItem({
         </div>
       </button>
 
-      <div
-        className={`grid transition-all duration-500 ease-in-out ${
-          isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-70"
-        }`}
-      >
-        <div className="overflow-hidden">
-          <div className="border-t border-white/10 px-6 py-5">
-            {filteredCommands.length > 0 ? (
-              <div className="grid gap-3">
-                {filteredCommands.map((item, index) => (
-                  <CommandCard
-                    key={`${section.id}-${item.command}-${index}`}
-                    item={item}
-                    index={index}
-                    query={query}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/60">
-                Aucune commande trouvée dans cette catégorie pour la recherche{" "}
-                <span className="text-yellow-300">“{query}”</span>.
-              </div>
-            )}
-          </div>
-        </div>
+      {isOpen && (
+  <div className="border-t border-white/10 px-6 py-5">
+    {filteredCommands.length > 0 ? (
+      <div className="grid gap-3">
+        {filteredCommands.map((item, index) => (
+          <CommandCard
+            key={`${section.id}-${item.command}-${index}`}
+            item={item}
+            index={index}
+            query={query}
+          />
+        ))}
       </div>
+    ) : (
+      <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/60">
+        Aucune commande trouvée dans cette catégorie pour la recherche{" "}
+        <span className="text-yellow-300">“{query}”</span>.
+      </div>
+    )}
+  </div>
+)}
     </div>
   );
 }
 
 export default function CommandesStaffPage() {
   const [search, setSearch] = useState("");
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const totalCommands = useMemo(
     () => sections.reduce((acc, section) => acc + section.commands.length, 0),
