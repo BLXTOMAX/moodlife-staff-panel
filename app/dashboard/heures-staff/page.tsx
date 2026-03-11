@@ -62,6 +62,9 @@ export default function HeuresStaffPage() {
   const [loading, setLoading] = useState(true);
   const [savingAll, setSavingAll] = useState(false);
   const [deletedIds, setDeletedIds] = useState<number[]>([]);
+  const [selectedWeek, setSelectedWeek] = useState("");
+  const [createdWeeks, setCreatedWeeks] = useState<string[]>([]);
+  const [showRanking, setShowRanking] = useState(false);
 
   useEffect(() => {
     loadRows();
@@ -88,13 +91,27 @@ export default function HeuresStaffPage() {
 
     setRows(cleanedRows);
     setDeletedIds([]);
+
+    const weekValues = Array.from(
+      new Set(cleanedRows.map((row) => (row.semaine || "").trim()).filter(Boolean))
+    );
+
+    if (!selectedWeek) {
+      setSelectedWeek(weekValues[0] || getDefaultWeekLabel());
+    }
+
     setLoading(false);
+  }
+
+  function getAllWeeks() {
+    const dbWeeks = rows.map((row) => (row.semaine || "").trim()).filter(Boolean);
+    return Array.from(new Set([...createdWeeks, ...dbWeeks]));
   }
 
   function buildEmptyRow(role = "Modérateur"): HeuresRow {
     return {
       id: -Date.now() - Math.floor(Math.random() * 1000),
-      semaine: "",
+      semaine: selectedWeek || getDefaultWeekLabel(),
       staff: "",
       role,
       lundi: "",
@@ -122,6 +139,25 @@ export default function HeuresStaffPage() {
   function addRow(role = "Modérateur") {
     const newRow = buildEmptyRow(role);
     setRows((prev) => [...prev, newRow]);
+  }
+
+  function createWeek() {
+    const value = window.prompt(
+      "Nom de la nouvelle semaine ?\nExemple : 18/03 au 24/03",
+      ""
+    );
+
+    if (!value) return;
+
+    const trimmed = value.trim();
+    if (!trimmed) return;
+
+    const allWeeks = getAllWeeks();
+    if (!allWeeks.includes(trimmed)) {
+      setCreatedWeeks((prev) => [...prev, trimmed]);
+    }
+
+    setSelectedWeek(trimmed);
   }
 
   function deleteRow(id: number) {
@@ -164,10 +200,6 @@ export default function HeuresStaffPage() {
     );
   }
 
-  async function saveRow() {
-    await saveAllRows();
-  }
-
   async function saveAllRows() {
     setSavingAll(true);
 
@@ -185,7 +217,7 @@ export default function HeuresStaffPage() {
       const paye = computePaye(row.role, row.staff, totalMinutes);
 
       const payload = {
-        semaine: row.semaine,
+        semaine: row.semaine || selectedWeek || getDefaultWeekLabel(),
         staff: row.staff,
         role: row.role,
         lundi: row.lundi,
@@ -229,29 +261,52 @@ export default function HeuresStaffPage() {
     await loadRows();
   }
 
-  async function clearAll() {
-    const ok = window.confirm("Tu veux vraiment vider toutes les heures staff ?");
+  function clearCurrentWeek() {
+    const ok = window.confirm(
+      `Tu veux vraiment vider la semaine "${selectedWeek}" ?`
+    );
     if (!ok) return;
 
-    setRows([]);
-    setDeletedIds((prev) => [
-      ...prev,
-      ...rows.filter((r) => !r.isNew && r.id > 0).map((r) => r.id),
-    ]);
+    const visibleRows = rows.filter(
+      (row) => (row.semaine || "").trim() === selectedWeek
+    );
+
+    const idsToDelete = visibleRows
+      .filter((row) => !row.isNew && row.id > 0)
+      .map((row) => row.id);
+
+    setDeletedIds((prev) => [...prev, ...idsToDelete]);
+    setRows((prev) =>
+      prev.filter((row) => (row.semaine || "").trim() !== selectedWeek)
+    );
   }
 
-  const totalStaff = rows.length;
-  const totalMinutes = useMemo(
-    () => rows.reduce((acc, row) => acc + computeTotalMinutes(row), 0),
-    [rows]
-  );
-  const totalReportsGlobal = useMemo(
-    () => rows.reduce((acc, row) => acc + computeTotalReports(row), 0),
-    [rows]
+  const weeks = useMemo(() => {
+    const all = Array.from(
+      new Set([
+        ...createdWeeks,
+        ...rows.map((row) => (row.semaine || "").trim()).filter(Boolean),
+      ])
+    );
+    return all.length > 0 ? all : [getDefaultWeekLabel()];
+  }, [rows, createdWeeks]);
+
+  const activeWeek = selectedWeek || weeks[0] || getDefaultWeekLabel();
+
+  const visibleRows = useMemo(
+    () => rows.filter((row) => (row.semaine || "").trim() === activeWeek),
+    [rows, activeWeek]
   );
 
-  const semaineAffichee =
-    rows.find((r) => (r.semaine || "").trim())?.semaine || "01/01 au 07/01";
+  const totalStaff = visibleRows.length;
+  const totalMinutes = useMemo(
+    () => visibleRows.reduce((acc, row) => acc + computeTotalMinutes(row), 0),
+    [visibleRows]
+  );
+  const totalReportsGlobal = useMemo(
+    () => visibleRows.reduce((acc, row) => acc + computeTotalReports(row), 0),
+    [visibleRows]
+  );
 
   const groupedRows = useMemo(() => {
     const map = new Map<string, HeuresRow[]>();
@@ -260,14 +315,36 @@ export default function HeuresStaffPage() {
       map.set(role, []);
     }
 
-    for (const row of rows) {
+    for (const row of visibleRows) {
       const role = normalizeRole(row.role);
       if (!map.has(role)) map.set(role, []);
       map.get(role)!.push(row);
     }
 
     return map;
-  }, [rows]);
+  }, [visibleRows]);
+
+  const rankingHours = useMemo(() => {
+    return [...visibleRows]
+      .map((row) => ({
+        staff: row.staff || "Sans nom",
+        role: normalizeRole(row.role),
+        totalMinutes: computeTotalMinutes(row),
+      }))
+      .sort((a, b) => b.totalMinutes - a.totalMinutes)
+      .slice(0, 10);
+  }, [visibleRows]);
+
+  const rankingReports = useMemo(() => {
+    return [...visibleRows]
+      .map((row) => ({
+        staff: row.staff || "Sans nom",
+        role: normalizeRole(row.role),
+        totalReports: computeTotalReports(row),
+      }))
+      .sort((a, b) => b.totalReports - a.totalReports)
+      .slice(0, 10);
+  }, [visibleRows]);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -281,15 +358,30 @@ export default function HeuresStaffPage() {
               Tableau des heures et reports
             </h1>
             <p className="mt-3 max-w-4xl text-sm text-gray-300">
-              Gère les heures jour par jour, les reports journaliers, le rôle du
-              staff, le total automatique et la paye.
+              Gère les heures, les reports, les semaines, le classement et la paye
+              automatique.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-semibold text-yellow-300">
-              Semaine du {semaineAffichee}
-            </div>
+            <select
+              value={activeWeek}
+              onChange={(e) => setSelectedWeek(e.target.value)}
+              className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-300 outline-none"
+            >
+              {weeks.map((week) => (
+                <option key={week} value={week} className="bg-black text-white">
+                  {week}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={createWeek}
+              className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-5 py-3 font-bold text-yellow-300 transition hover:bg-yellow-500/20"
+            >
+              + Nouvelle semaine
+            </button>
 
             <button
               onClick={() => addRow("Modérateur")}
@@ -307,10 +399,10 @@ export default function HeuresStaffPage() {
             </button>
 
             <button
-              onClick={clearAll}
+              onClick={clearCurrentWeek}
               className="rounded-2xl border border-red-700 bg-red-950/60 px-5 py-3 font-bold text-red-300 transition hover:bg-red-900/60"
             >
-              Tout vider
+              Vider la semaine
             </button>
           </div>
         </div>
@@ -328,8 +420,91 @@ export default function HeuresStaffPage() {
           value={String(totalReportsGlobal)}
           tone="blue"
         />
-        <StatCard title="Semaine" value={semaineAffichee} tone="purple" />
+        <StatCard title="Semaine" value={activeWeek} tone="purple" />
       </div>
+
+      <div className="px-6 pb-4">
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowRanking((prev) => !prev)}
+            className="rounded-xl border border-yellow-500/20 bg-[#0b0b0b] px-4 py-2 text-sm font-semibold text-gray-300 transition hover:border-yellow-500/40 hover:text-yellow-300"
+          >
+            {showRanking ? "Masquer le classement" : "Voir le classement"}
+          </button>
+        </div>
+      </div>
+
+      {showRanking && (
+        <div className="grid gap-4 px-6 pb-6 lg:grid-cols-2">
+          <div className="rounded-2xl border border-yellow-500/20 bg-[#050505] p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-extrabold text-yellow-300">
+                Classement heures
+              </h3>
+              <span className="text-xs uppercase tracking-[0.2em] text-gray-500">
+                semaine sélectionnée
+              </span>
+            </div>
+
+            {rankingHours.length === 0 ? (
+              <p className="text-sm text-gray-500">Aucune donnée.</p>
+            ) : (
+              <div className="space-y-2">
+                {rankingHours.map((item, index) => (
+                  <div
+                    key={`${item.staff}-${index}`}
+                    className="flex items-center justify-between rounded-xl border border-green-500/10 bg-green-950/10 px-4 py-3"
+                  >
+                    <div>
+                      <p className="font-bold text-white">
+                        #{index + 1} {item.staff}
+                      </p>
+                      <p className="text-xs text-gray-400">{item.role}</p>
+                    </div>
+                    <div className="font-extrabold text-green-300">
+                      {formatMinutes(item.totalMinutes)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-yellow-500/20 bg-[#050505] p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-extrabold text-yellow-300">
+                Classement reports
+              </h3>
+              <span className="text-xs uppercase tracking-[0.2em] text-gray-500">
+                semaine sélectionnée
+              </span>
+            </div>
+
+            {rankingReports.length === 0 ? (
+              <p className="text-sm text-gray-500">Aucune donnée.</p>
+            ) : (
+              <div className="space-y-2">
+                {rankingReports.map((item, index) => (
+                  <div
+                    key={`${item.staff}-${index}`}
+                    className="flex items-center justify-between rounded-xl border border-blue-500/10 bg-blue-950/10 px-4 py-3"
+                  >
+                    <div>
+                      <p className="font-bold text-white">
+                        #{index + 1} {item.staff}
+                      </p>
+                      <p className="text-xs text-gray-400">{item.role}</p>
+                    </div>
+                    <div className="font-extrabold text-blue-300">
+                      {item.totalReports}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-6 px-6 pb-10">
         {loading ? (
@@ -365,7 +540,7 @@ export default function HeuresStaffPage() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <div className="min-w-[2500px]">
+                  <div className="min-w-[2350px]">
                     <div className="grid grid-cols-[260px_170px_repeat(7,110px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 border-b border-yellow-500/10 bg-[#0b0b0b] px-4 py-4 text-xs font-bold uppercase text-yellow-300">
                       <div>Nom du staff</div>
                       <div>Semaine</div>
@@ -394,7 +569,7 @@ export default function HeuresStaffPage() {
 
                     {group.length === 0 ? (
                       <div className="px-4 py-8 text-sm text-gray-500">
-                        Aucun staff dans cette catégorie.
+                        Aucun staff dans cette catégorie pour cette semaine.
                       </div>
                     ) : (
                       <div className="divide-y divide-yellow-500/10">
@@ -428,7 +603,7 @@ export default function HeuresStaffPage() {
                                 onChange={(e) =>
                                   updateRow(row.id, "semaine", e.target.value)
                                 }
-                                placeholder="01/03 au 15/03"
+                                placeholder={activeWeek}
                                 className={`${inputClass} border-yellow-500/30`}
                               />
 
@@ -484,13 +659,13 @@ export default function HeuresStaffPage() {
                               />
 
                               <div>
-  <button
-    onClick={() => deleteRow(row.id)}
-    className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
-  >
-    Suppr.
-  </button>
-</div>
+                                <button
+                                  onClick={() => deleteRow(row.id)}
+                                  className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
+                                >
+                                  Suppr.
+                                </button>
+                              </div>
                             </div>
                           );
                         })}
@@ -505,6 +680,10 @@ export default function HeuresStaffPage() {
       </div>
     </div>
   );
+}
+
+function getDefaultWeekLabel() {
+  return "01/01 au 07/01";
 }
 
 function normalizeRole(role: string) {
