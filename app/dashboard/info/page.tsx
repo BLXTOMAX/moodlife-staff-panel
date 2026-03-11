@@ -29,11 +29,13 @@ function QuickCard({
   title: string;
   subtitle: string;
   external?: boolean;
-  variant?: "dark" | "yellow";
+  variant?: "dark" | "yellow" | "blue";
 }) {
   const styles =
     variant === "yellow"
       ? "border-yellow-400/20 bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] text-black shadow-[0_12px_30px_rgba(250,204,21,0.24)] hover:shadow-[0_18px_40px_rgba(250,204,21,0.30)]"
+      : variant === "blue"
+      ? "border-blue-400/20 bg-[linear-gradient(135deg,#2563eb,#3b82f6,#60a5fa)] text-white shadow-[0_12px_30px_rgba(37,99,235,0.24)] hover:shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
       : "border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] text-white shadow-[0_12px_30px_rgba(0,0,0,0.26)] hover:border-yellow-300/20 hover:shadow-[0_18px_40px_rgba(0,0,0,0.34)]";
 
   return (
@@ -47,7 +49,7 @@ function QuickCard({
       <div className="relative">
         <p
           className={`text-sm ${
-            variant === "yellow" ? "text-black/70" : "text-white/70"
+            variant === "yellow" ? "text-black/70" : "text-white/80"
           }`}
         >
           {subtitle}
@@ -265,7 +267,7 @@ export default function InfoPage() {
   title="Rejoindre le Discord"
   subtitle="Discord officiel"
   external
-  variant="dark"
+  variant="blue"
 />
 
           <QuickCard
