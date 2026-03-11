@@ -9,12 +9,57 @@ import {
   Users,
   Radio,
   Sparkles,
+  Wifi,
+  ShieldCheck,
 } from "lucide-react";
 
 type ServerStats = {
   players: number | null;
   maxPlayers: number | null;
 };
+
+function QuickCard({
+  href,
+  title,
+  subtitle,
+  external = false,
+  variant = "dark",
+}: {
+  href: string;
+  title: string;
+  subtitle: string;
+  external?: boolean;
+  variant?: "dark" | "yellow";
+}) {
+  const styles =
+    variant === "yellow"
+      ? "border-yellow-400/20 bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] text-black shadow-[0_12px_30px_rgba(250,204,21,0.24)] hover:shadow-[0_18px_40px_rgba(250,204,21,0.30)]"
+      : "border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] text-white shadow-[0_12px_30px_rgba(0,0,0,0.26)] hover:border-yellow-300/20 hover:shadow-[0_18px_40px_rgba(0,0,0,0.34)]";
+
+  return (
+    <a
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noreferrer" : undefined}
+      className={`group relative overflow-hidden rounded-[28px] border p-6 transition duration-300 hover:-translate-y-1 ${styles}`}
+    >
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom_right,rgba(255,255,255,0.05),transparent)]" />
+      <div className="relative">
+        <p
+          className={`text-sm ${
+            variant === "yellow" ? "text-black/70" : "text-white/70"
+          }`}
+        >
+          {subtitle}
+        </p>
+        <div className="mt-2 flex items-center justify-between gap-4">
+          <p className="text-2xl font-black">{title}</p>
+          <ChevronRight className="h-5 w-5 transition group-hover:translate-x-1" />
+        </div>
+      </div>
+    </a>
+  );
+}
 
 export default function InfoPage() {
   const [stats, setStats] = useState<ServerStats>({
@@ -78,10 +123,13 @@ export default function InfoPage() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-yellow-400/15 bg-gradient-to-br from-[#0a0a0a] via-[#101010] to-[#0c0c0c] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.08),transparent_24%)]" />
+      <section className="relative overflow-hidden rounded-[34px] border border-yellow-400/15 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.16),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.10),transparent_24%),linear-gradient(135deg,rgba(8,8,8,0.98),rgba(17,17,17,0.90),rgba(10,10,10,0.98))] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.46)]">
+        <div className="absolute -left-10 top-0 h-40 w-40 rounded-full bg-yellow-400/10 blur-3xl" />
+        <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-amber-300/10 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-32 w-32 rounded-full bg-yellow-200/5 blur-3xl" />
+
         <div className="relative">
-          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-yellow-300">
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-yellow-300">
             <Sparkles className="h-3.5 w-3.5" />
             Info serveur
           </div>
@@ -90,7 +138,9 @@ export default function InfoPage() {
             MoodLife en temps réel
           </h1>
 
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-white/70 md:text-base">
+          <div className="mt-4 h-px w-48 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
+
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-white/72 md:text-base">
             Retrouve ici les informations principales du serveur, avec l’état
             actuel, le nombre de joueurs connectés et les accès rapides les plus
             utiles pour le staff.
@@ -99,8 +149,11 @@ export default function InfoPage() {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
-        <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/90 p-6 shadow-[0_12px_35px_rgba(0,0,0,0.35)] backdrop-blur-md">
-          <div className="flex items-center justify-between gap-4">
+        <div className="relative overflow-hidden rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_12px_35px_rgba(0,0,0,0.35)] backdrop-blur-md">
+          <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-yellow-400/10 blur-3xl" />
+          <div className="absolute bottom-0 left-0 h-36 w-36 rounded-full bg-emerald-400/5 blur-3xl" />
+
+          <div className="relative flex items-center justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/90">
                 Joueurs connectés
@@ -111,23 +164,25 @@ export default function InfoPage() {
             </div>
 
             <div
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
                 isOnline
-                  ? "border-green-400/25 bg-green-500/10 text-green-300"
+                  ? "border-emerald-400/25 bg-emerald-500/10 text-emerald-300"
                   : "border-white/10 bg-white/5 text-white/60"
               }`}
             >
               <span
-                className={`h-2 w-2 rounded-full ${
-                  isOnline ? "bg-green-400" : "bg-white/40"
+                className={`h-2 w-2 rounded-full shadow-[0_0_12px_rgba(255,255,255,0.25)] ${
+                  isOnline ? "bg-emerald-400" : "bg-white/40"
                 }`}
               />
               {loading ? "Chargement" : isOnline ? "En ligne" : "Indisponible"}
             </div>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-[28px] border border-green-500/20 bg-gradient-to-br from-green-500/[0.14] via-green-400/[0.05] to-transparent p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-            <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="relative mt-6 overflow-hidden rounded-[28px] border border-emerald-500/20 bg-[linear-gradient(135deg,rgba(34,197,94,0.14),rgba(250,204,21,0.06),rgba(0,0,0,0.04))] p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-emerald-400/10 blur-3xl" />
+
+            <div className="relative flex flex-wrap items-start justify-between gap-6">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/65">
                   <Radio className="h-3.5 w-3.5" />
@@ -153,14 +208,26 @@ export default function InfoPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                <div className="flex items-center gap-2 text-white/70">
-                  <Users className="h-4 w-4 text-yellow-300" />
-                  <span className="text-sm">Capacité</span>
+              <div className="grid gap-3 sm:min-w-[220px]">
+                <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                  <div className="flex items-center gap-2 text-white/70">
+                    <Users className="h-4 w-4 text-yellow-300" />
+                    <span className="text-sm">Capacité</span>
+                  </div>
+                  <p className="mt-2 text-xl font-bold text-white">
+                    {stats.maxPlayers ?? "--"} slots
+                  </p>
                 </div>
-                <p className="mt-2 text-xl font-bold text-white">
-                  {stats.maxPlayers ?? "--"} slots
-                </p>
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                  <div className="flex items-center gap-2 text-white/70">
+                    <Wifi className="h-4 w-4 text-emerald-300" />
+                    <span className="text-sm">Disponibilité</span>
+                  </div>
+                  <p className="mt-2 text-xl font-bold text-white">
+                    {loading ? "..." : isOnline ? "Serveur actif" : "Hors ligne"}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -170,53 +237,51 @@ export default function InfoPage() {
                 <span>{Math.round(fillPercentage)}%</span>
               </div>
 
-              <div className="h-3 overflow-hidden rounded-full bg-black/30">
+              <div className="h-3 overflow-hidden rounded-full bg-black/30 ring-1 ring-white/5">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-green-400 via-yellow-300 to-yellow-400 transition-all duration-700"
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-yellow-300 to-yellow-400 transition-all duration-700"
                   style={{ width: `${fillPercentage}%` }}
                 />
               </div>
             </div>
 
-            <div className="mt-5 flex items-center gap-2 text-sm text-white/65">
-              <Activity className="h-4 w-4 text-green-300" />
-              Mise à jour automatique toutes les 15 secondes.
+            <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-white/65">
+              <div className="inline-flex items-center gap-2">
+                <Activity className="h-4 w-4 text-emerald-300" />
+                Mise à jour automatique toutes les 15 secondes.
+              </div>
+
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/60">
+                <ShieldCheck className="h-3.5 w-3.5 text-yellow-300" />
+                Monitoring actif
+              </div>
             </div>
           </div>
         </div>
 
         <div className="grid gap-4">
-          <a
-            href="https://discord.gg/moodlife"
-            target="_blank"
-            rel="noreferrer"
-            className="group rounded-[28px] border border-indigo-400/20 bg-gradient-to-r from-indigo-500 to-indigo-400 p-6 text-white shadow-[0_10px_30px_rgba(79,70,229,0.22)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(79,70,229,0.30)]"
-          >
-            <p className="text-sm text-white/80">Discord officiel</p>
-            <div className="mt-2 flex items-center justify-between gap-4">
-              <p className="text-2xl font-black">Rejoindre le Discord</p>
-              <ChevronRight className="h-5 w-5 transition group-hover:translate-x-1" />
-            </div>
-          </a>
+          <QuickCard
+  href="https://discord.gg/moodlife"
+  title="Rejoindre le Discord"
+  subtitle="Discord officiel"
+  external
+  variant="dark"
+/>
 
-          <a
+          <QuickCard
             href="https://cfx.re/join/5g6lmd"
-            className="group rounded-[28px] border border-yellow-400/20 bg-gradient-to-r from-yellow-400 to-yellow-300 p-6 text-black shadow-[0_10px_30px_rgba(250,204,21,0.22)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(250,204,21,0.30)]"
-          >
-            <p className="text-sm text-black/70">Connexion directe</p>
-            <div className="mt-2 flex items-center justify-between gap-4">
-              <p className="text-2xl font-black">Se connecter au serveur</p>
-              <ChevronRight className="h-5 w-5 transition group-hover:translate-x-1" />
-            </div>
-          </a>
+            title="Se connecter au serveur"
+            subtitle="Connexion directe"
+            variant="yellow"
+          />
 
-          <div className="rounded-[28px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_25px_rgba(0,0,0,0.35)]">
+          <div className="rounded-[28px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_25px_rgba(0,0,0,0.35)]">
             <div className="flex items-center gap-2 text-white/80">
               <Server className="h-4 w-4 text-yellow-300" />
               <p className="text-sm">Commande de connexion</p>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4">
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
               <p className="break-all text-lg font-bold text-yellow-300 md:text-xl">
                 connect cfx.re/join/5g6lmd
               </p>
