@@ -339,12 +339,17 @@ function ReasonAccordion({
         </div>
 
         <ChevronDown
-          className={`h-5 w-5 shrink-0 text-white/55 transition ${open ? "rotate-180" : ""}`}
+          className={`h-5 w-5 shrink-0 text-white/55 transition-transform duration-300 ${
+  open ? "rotate-180" : ""
+}`}
         />
       </button>
 
-      {open ? (
-        <div className="border-t border-white/10 px-5 py-4">
+      <div
+  className={`border-t border-white/10 px-5 transition-all duration-300 ease-in-out overflow-hidden ${
+    open ? "max-h-[800px] py-4 opacity-100" : "max-h-0 py-0 opacity-0"
+  }`}
+>
           <div className="grid gap-3 md:grid-cols-2">
             {reasons.map((reason, index) => (
               <div
@@ -361,7 +366,6 @@ function ReasonAccordion({
             ))}
           </div>
         </div>
-      ) : null}
     </div>
   );
 }
