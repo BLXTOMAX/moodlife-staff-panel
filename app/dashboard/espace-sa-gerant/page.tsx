@@ -1,17 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   BadgeCheck,
   Bell,
   CalendarRange,
-  ClipboardList,
   FolderKanban,
+  Scale,
   Shield,
   Sparkles,
-  Users,
 } from "lucide-react";
 
 type DayKey = "lun" | "mar" | "mer" | "jeu" | "ven" | "sam" | "dim";
@@ -20,7 +19,8 @@ type StaffRole =
   | "Gérant-Staff"
   | "Super-Administrateur"
   | "Administrateur"
-  | "Modérateur";
+  | "Modérateur"
+  | "Helpeur";
 
 type StaffRow = {
   id: number;
@@ -49,6 +49,7 @@ const DAY_KEYS: DayKey[] = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"];
 
 function parseHourToMinutes(value: string) {
   const clean = value.trim().toLowerCase();
+
   if (!clean || clean === "0" || clean === "imprévu" || clean === "imprevu") {
     return 0;
   }
@@ -57,6 +58,7 @@ function parseHourToMinutes(value: string) {
   if (match) {
     const hours = Number(match[1]);
     const minutes = Number(match[2]);
+
     if (Number.isNaN(hours) || Number.isNaN(minutes)) return 0;
     return hours * 60 + minutes;
   }
@@ -96,14 +98,14 @@ function StatCard({
   );
 }
 
-function QuickCard({
+function ToolCard({
   href,
   icon,
   title,
   text,
 }: {
   href: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   text: string;
 }) {
@@ -161,6 +163,7 @@ export default function EspaceSaGerantPage() {
     }
 
     const staffCount = activeWeek.rows.length;
+
     const totalReports = activeWeek.rows.reduce((sum, row) => {
       return (
         sum +
@@ -175,7 +178,11 @@ export default function EspaceSaGerantPage() {
       );
     }, 0);
 
-    return { staffCount, totalReports, totalMinutes };
+    return {
+      staffCount,
+      totalReports,
+      totalMinutes,
+    };
   }, [activeWeek]);
 
   return (
@@ -189,31 +196,30 @@ export default function EspaceSaGerantPage() {
             </div>
 
             <h1 className="mt-4 text-3xl font-black tracking-tight text-white md:text-4xl">
-              Centre de gestion staff
+              Outils de gestion staff
             </h1>
 
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-white/72 md:text-[15px]">
-              Regroupe les accès importants pour la supervision staff, le suivi
-              des heures, les remontées et les outils réservés aux membres
-              responsables de la gestion.
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-white/70 md:text-[15px]">
+              Accès rapide aux outils principaux de suivi, de contrôle et de gestion.
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:w-[420px]">
+          <div className="grid gap-3 sm:grid-cols-2 xl:w-[430px]">
             <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
               <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/75">
                 Semaine active
               </p>
               <p className="mt-2 text-sm font-semibold text-white">
-                {activeWeek?.label ?? "Aucune semaine sélectionnée"}
+                {activeWeek?.label ?? "Aucune semaine"}
               </p>
             </div>
+
             <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
               <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/75">
                 Accès
               </p>
               <p className="mt-2 text-sm font-semibold text-white">
-                Supervision & gestion avancée
+                Gestion & supervision
               </p>
             </div>
           </div>
@@ -224,59 +230,54 @@ export default function EspaceSaGerantPage() {
         <StatCard
           title="Staffs suivis"
           value={String(summary.staffCount)}
-          subtitle="Nombre total de lignes staff présentes dans la semaine active."
+          subtitle="Nombre de lignes staff sur la semaine active."
         />
         <StatCard
           title="Reports"
           value={String(summary.totalReports)}
-          subtitle="Total des reports enregistrés sur la semaine sélectionnée."
+          subtitle="Total des reports saisis sur la semaine active."
         />
         <StatCard
           title="Heures totales"
           value={formatMinutes(summary.totalMinutes)}
-          subtitle="Temps cumulé de toute l’équipe sur la semaine active."
+          subtitle="Temps cumulé de toute l’équipe cette semaine."
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        <QuickCard
+      <section className="grid gap-4 xl:grid-cols-3">
+        <ToolCard
           href="/dashboard/heures-staff"
           icon={<CalendarRange className="h-5 w-5" />}
           title="Heures Staff"
-          text="Suivi hebdomadaire avec semaines multiples, reports, total d’heures et édition complète."
+          text="Gestion propre des semaines, des heures et des reports."
         />
-        <QuickCard
+
+        <ToolCard
           href="/dashboard/remontees"
           icon={<Bell className="h-5 w-5" />}
           title="Remontées"
-          text="Accès rapide au suivi des remontées et aux éléments à traiter par l’encadrement."
+          text="Accès direct aux remontées et au suivi des points à traiter."
         />
-        <QuickCard
-          href="/dashboard/absence-staff"
-          icon={<Users className="h-5 w-5" />}
-          title="Absences Staff"
-          text="Gère les absences, la disponibilité et l’organisation interne du staff."
-        />
-        <QuickCard
-          href="/dashboard/commandes-staff"
-          icon={<ClipboardList className="h-5 w-5" />}
-          title="Commandes Staff"
-          text="Retrouve les commandes utiles et les accès pratiques pour l’encadrement."
+
+        <ToolCard
+          href="/dashboard/bl-staff"
+          icon={<Scale className="h-5 w-5" />}
+          title="BL Staff"
+          text="Accès rapide au suivi BL staff et aux dossiers concernés."
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
+      <section className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
         <div className="rounded-3xl border border-yellow-400/15 bg-[#0a0a0a] p-6">
           <p className="text-xs uppercase tracking-[0.28em] text-yellow-300/80">
             Organisation
           </p>
           <h2 className="mt-2 text-2xl font-bold text-white">
-            Espace centralisé de gestion
+            Espace centralisé
           </h2>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-white/65">
-            Cette page sert de point d’entrée rapide pour la gestion staff. Le
-            but est de limiter le désordre, mieux répartir les outils et donner
-            une lecture immédiate de la semaine active.
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-white/62">
+            Regroupe uniquement les outils utiles à la gestion. Les accès déjà
+            présents dans le menu gauche ne sont pas répétés ici.
           </p>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -286,12 +287,11 @@ export default function EspaceSaGerantPage() {
                   <FolderKanban className="h-5 w-5" />
                 </div>
                 <h3 className="text-lg font-semibold text-white">
-                  Gestion simplifiée
+                  Plus propre
                 </h3>
               </div>
               <p className="mt-3 text-sm leading-6 text-white/60">
-                Accès rapides, hiérarchie plus claire et meilleure séparation des
-                outils sensibles.
+                Moins de doublons, outils mieux rangés, lecture plus simple.
               </p>
             </div>
 
@@ -301,12 +301,11 @@ export default function EspaceSaGerantPage() {
                   <Shield className="h-5 w-5" />
                 </div>
                 <h3 className="text-lg font-semibold text-white">
-                  Zone encadrée
+                  Réservé gestion
                 </h3>
               </div>
               <p className="mt-3 text-sm leading-6 text-white/60">
-                Réservé aux membres responsables de la gestion et de la
-                supervision du staff.
+                Page pensée pour le suivi staff, les semaines et les accès utiles.
               </p>
             </div>
           </div>
@@ -317,15 +316,15 @@ export default function EspaceSaGerantPage() {
             Rappel
           </p>
           <h2 className="mt-2 text-2xl font-bold text-white">
-            Bonnes pratiques
+            À garder propre
           </h2>
 
           <div className="mt-5 space-y-3">
             {[
-              "Créer une nouvelle semaine manuellement avant de commencer le suivi.",
-              "Mettre à jour les heures et reports au fur et à mesure pour éviter les oublis.",
-              "Utiliser l’espace de gestion comme point central au lieu de disperser les outils.",
-              "Conserver une lecture claire des semaines précédentes sans les écraser.",
+              "Créer une nouvelle semaine au bon moment.",
+              "Éviter d’écraser les anciennes semaines.",
+              "Renseigner les reports et heures au fur et à mesure.",
+              "Utiliser cette page comme point central de gestion.",
             ].map((item) => (
               <div
                 key={item}

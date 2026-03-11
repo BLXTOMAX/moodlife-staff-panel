@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   CalendarRange,
   ChevronDown,
@@ -18,7 +18,8 @@ type StaffRole =
   | "Gérant-Staff"
   | "Super-Administrateur"
   | "Administrateur"
-  | "Modérateur";
+  | "Modérateur"
+  | "Helpeur";
 
 type StaffRow = {
   id: number;
@@ -59,6 +60,7 @@ const ROLES: StaffRole[] = [
   "Super-Administrateur",
   "Administrateur",
   "Modérateur",
+  "Helpeur",
 ];
 
 const DEFAULT_HOURS: Record<DayKey, string> = {
@@ -83,6 +85,7 @@ const DEFAULT_REPORTS: Record<DayKey, number> = {
 
 function parseHourToMinutes(value: string) {
   const clean = value.trim().toLowerCase();
+
   if (!clean || clean === "0" || clean === "imprévu" || clean === "imprevu") {
     return 0;
   }
@@ -91,6 +94,7 @@ function parseHourToMinutes(value: string) {
   if (match) {
     const hours = Number(match[1]);
     const minutes = Number(match[2]);
+
     if (Number.isNaN(hours) || Number.isNaN(minutes)) return 0;
     return hours * 60 + minutes;
   }
@@ -169,6 +173,7 @@ export default function HeuresStaffPage() {
 
   useEffect(() => {
     const raw = window.localStorage.getItem(STORAGE_KEY);
+
     if (!raw) {
       const initialWeek = createWeekFromLabel("Semaine du 01/01 au 07/01");
       setStorage({
@@ -180,6 +185,7 @@ export default function HeuresStaffPage() {
 
     try {
       const parsed = JSON.parse(raw) as HoursStorage;
+
       if (!parsed.weeks?.length) {
         const initialWeek = createWeekFromLabel("Semaine du 01/01 au 07/01");
         setStorage({
@@ -213,10 +219,9 @@ export default function HeuresStaffPage() {
   );
 
   const groupedRows = useMemo(() => {
-    const base = Object.fromEntries(ROLES.map((role) => [role, [] as StaffRow[]])) as Record<
-      StaffRole,
-      StaffRow[]
-    >;
+    const base = Object.fromEntries(
+      ROLES.map((role) => [role, [] as StaffRow[]])
+    ) as Record<StaffRole, StaffRow[]>;
 
     if (!activeWeek) return base;
 
@@ -295,6 +300,7 @@ export default function HeuresStaffPage() {
 
   function deleteActiveWeek() {
     if (!activeWeek) return;
+
     if (storage.weeks.length <= 1) {
       window.alert("Il faut conserver au moins une semaine.");
       return;
@@ -332,6 +338,7 @@ export default function HeuresStaffPage() {
 
   function clearActiveWeek() {
     if (!activeWeek) return;
+
     const confirmed = window.confirm(
       `Vider toutes les lignes de "${activeWeek.label}" ?`
     );
@@ -398,10 +405,7 @@ export default function HeuresStaffPage() {
             </h1>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-white/72 md:text-[15px]">
-              Gère plusieurs semaines, saisis les heures au format <span className="text-yellow-300">2:30</span>,
-              mets <span className="text-red-300">0</span> pour une absence et{" "}
-              <span className="text-sky-300">Imprévu</span> si besoin. Chaque
-              semaine est sauvegardée séparément.
+              Suivi des semaines, des heures et des reports. Une semaine = un enregistrement séparé.
             </p>
           </div>
 
@@ -447,7 +451,11 @@ export default function HeuresStaffPage() {
                   {activeWeek?.label ?? "Aucune semaine"}
                 </p>
               </div>
-              <ChevronDown className={`h-5 w-5 text-white/50 transition ${weekMenuOpen ? "rotate-180" : ""}`} />
+              <ChevronDown
+                className={`h-5 w-5 text-white/50 transition ${
+                  weekMenuOpen ? "rotate-180" : ""
+                }`}
+              />
             </button>
 
             {weekMenuOpen ? (
@@ -502,7 +510,7 @@ export default function HeuresStaffPage() {
               </p>
               <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-white">
                 <Save className="h-4 w-4 text-emerald-300" />
-                Automatique dans le navigateur
+                Automatique
               </p>
             </div>
 
@@ -521,28 +529,27 @@ export default function HeuresStaffPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           <StatCard
             title="Staffs"
             value={String(stats.staffCount)}
-            subtitle="Nombre total de lignes staff actuellement enregistrées."
+            subtitle="Nombre total de lignes staff présentes dans la semaine active."
           />
           <StatCard
             title="Reports"
             value={String(stats.totalReports)}
-            subtitle="Total général des reports renseignés sur toute la semaine."
+            subtitle="Total des reports enregistrés sur la semaine sélectionnée."
             valueClassName="text-sky-300"
           />
           <StatCard
             title="Heures totales"
             value={formatMinutes(stats.totalMinutes)}
-            subtitle="Temps cumulé de tous les staffs sur la semaine active."
-            valueClassName="text-white"
+            subtitle="Temps cumulé de toute l’équipe sur la semaine active."
           />
           <StatCard
-            title="Règle coins"
-            value={`${stats.eligibleCount}`}
-            subtitle="Nombre de staffs à 10h ou plus sur la semaine."
+            title="Coins"
+            value={String(stats.eligibleCount)}
+            subtitle="Staffs à 10h ou plus sur la semaine."
             valueClassName="text-pink-300"
           />
         </div>
@@ -554,8 +561,7 @@ export default function HeuresStaffPage() {
             <div>
               <h2 className="text-xl font-bold text-white">Tableau des heures et reports</h2>
               <p className="mt-2 text-sm leading-6 text-white/60">
-                Gère les heures jour par jour, les reports et le grade de chaque
-                staff. Les semaines restent séparées pour garder un historique propre.
+                Saisie propre par staff, grade, jours et reports.
               </p>
             </div>
 
@@ -567,21 +573,42 @@ export default function HeuresStaffPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-[1700px] w-full">
+          <table className="w-full min-w-[1850px] table-fixed">
+            <colgroup>
+              <col className="w-[200px]" />
+              <col className="w-[190px]" />
+              {DAY_KEYS.map((day) => (
+                <col key={`h-${day}`} className="w-[90px]" />
+              ))}
+              {DAY_KEYS.map((day) => (
+                <col key={`r-${day}`} className="w-[80px]" />
+              ))}
+              <col className="w-[95px]" />
+              <col className="w-[90px]" />
+              <col className="w-[110px]" />
+              <col className="w-[140px]" />
+            </colgroup>
+
             <thead className="bg-black/35">
               <tr className="text-left text-sm text-white/85">
                 <th className="px-4 py-4 font-semibold text-yellow-300">Staff</th>
                 <th className="px-4 py-4 font-semibold">Grade</th>
+
                 {DAY_KEYS.map((day) => (
                   <th key={day} className="px-4 py-4 font-semibold">
                     {DAY_LABELS[day]}
                   </th>
                 ))}
+
                 {DAY_KEYS.map((day) => (
-                  <th key={`r-${day}`} className="px-4 py-4 font-semibold text-sky-300">
+                  <th
+                    key={`report-${day}`}
+                    className="px-4 py-4 font-semibold text-sky-300"
+                  >
                     R {DAY_LABELS[day]}
                   </th>
                 ))}
+
                 <th className="px-4 py-4 font-semibold">Total h</th>
                 <th className="px-4 py-4 font-semibold">Reports</th>
                 <th className="px-4 py-4 font-semibold">Coins</th>
@@ -594,10 +621,10 @@ export default function HeuresStaffPage() {
                 const rows = groupedRows[role];
 
                 return (
-                  <tbody key={role}>
+                  <Fragment key={role}>
                     <tr className="border-y border-yellow-400/10 bg-gradient-to-r from-yellow-400/8 to-transparent">
                       <td
-                        colSpan={19}
+                        colSpan={20}
                         className="px-4 py-4 text-sm font-black uppercase tracking-[0.28em] text-yellow-300"
                       >
                         {role}
@@ -606,7 +633,10 @@ export default function HeuresStaffPage() {
 
                     {rows.length === 0 ? (
                       <tr className="border-b border-white/5">
-                        <td colSpan={19} className="px-4 py-6 text-center text-sm text-white/35">
+                        <td
+                          colSpan={20}
+                          className="px-4 py-6 text-center text-sm text-white/35"
+                        >
                           Aucun staff dans cette catégorie.
                         </td>
                       </tr>
@@ -617,7 +647,10 @@ export default function HeuresStaffPage() {
                         const hasCoins = totalMinutes >= 600;
 
                         return (
-                          <tr key={row.id} className="border-b border-white/5 align-top">
+                          <tr
+                            key={row.id}
+                            className="border-b border-white/5 align-top"
+                          >
                             <td className="px-4 py-4">
                               <input
                                 value={row.name}
@@ -628,7 +661,7 @@ export default function HeuresStaffPage() {
                                   }))
                                 }
                                 placeholder="Nom du staff"
-                                className="w-[190px] rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25"
+                                className="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25"
                               />
                             </td>
 
@@ -641,7 +674,7 @@ export default function HeuresStaffPage() {
                                     role: e.target.value as StaffRole,
                                   }))
                                 }
-                                className="w-[210px] rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none"
+                                className="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none"
                               >
                                 {ROLES.map((item) => (
                                   <option key={item} value={item}>
@@ -665,7 +698,7 @@ export default function HeuresStaffPage() {
                                     }))
                                   }
                                   placeholder="2:30"
-                                  className="w-[85px] rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25"
+                                  className="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25"
                                 />
                               </td>
                             ))}
@@ -685,7 +718,7 @@ export default function HeuresStaffPage() {
                                       },
                                     }))
                                   }
-                                  className="w-[70px] rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none"
+                                  className="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none"
                                 />
                               </td>
                             ))}
@@ -723,7 +756,7 @@ export default function HeuresStaffPage() {
                         );
                       })
                     )}
-                  </tbody>
+                  </Fragment>
                 );
               })}
             </tbody>
