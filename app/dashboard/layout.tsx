@@ -6,6 +6,7 @@ import { getSessionEmail, isOwner } from "@/lib/access";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/sidebar";
 import SitePresenceTracker from "@/components/site-presence-tracker";
+import StaffFaqBot from "@/components/staff-faq-bot";
 
 const ALL_ITEMS = [
   "/dashboard/info",
