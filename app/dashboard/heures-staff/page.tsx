@@ -61,23 +61,30 @@ export default function HeuresStaffPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadRows();
+  loadRows();
 
-    const channel = supabase
-      .channel("heures-staff-live-v2")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "heures_staff" },
-        async () => {
-          await loadRows();
-        }
-      )
-      .subscribe();
+  const channel = supabase
+    .channel("heures-staff-live-v2")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "heures_staff" },
+      async () => {
+        await loadRows();
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "heures_staff" },
+      async () => {
+        await loadRows();
+      }
+    )
+    .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
 
   async function loadRows() {
     setLoading(true);
@@ -128,76 +135,99 @@ export default function HeuresStaffPage() {
   }
 
   async function deleteRow(id: number) {
-    const previous = rows;
-    setRows((prev) => prev.filter((row) => row.id !== id));
+  const previous = rows;
+  setRows((prev) => prev.filter((row) => row.id !== id));
 
-    const { error } = await supabase.from("heures_staff").delete().eq("id", id);
+  const { error } = await supabase.from("heures_staff").delete().eq("id", id);
 
-    if (error) {
-      console.error("Erreur suppression heures staff :", error);
-      setRows(previous);
-    }
+  if (error) {
+    console.error("Erreur suppression heures staff :", error);
+    setRows(previous);
   }
+}
 
-  async function updateRow(
-    id: number,
-    field: keyof HeuresRow,
-    value: string | number
-  ) {
-    const currentRow = rows.find((r) => r.id === id);
-    if (!currentRow) return;
+function updateRow(
+  id: number,
+  field: keyof HeuresRow,
+  value: string | number
+) {
+  setRows((prev) =>
+    prev.map((row) => {
+      if (row.id !== id) return row;
 
-    const nextRow: HeuresRow = {
-      ...currentRow,
-      [field]: value,
-    } as HeuresRow;
+      const nextRow: HeuresRow = {
+        ...row,
+        [field]: value,
+      } as HeuresRow;
 
-    const totalMinutes = computeTotalMinutes(nextRow);
-    const totalFormatted = formatMinutes(totalMinutes);
-    const totalReports = computeTotalReports(nextRow);
-    const paye = computePaye(nextRow.role, nextRow.staff, totalMinutes);
+      const totalMinutes = computeTotalMinutes(nextRow);
+      const totalFormatted = formatMinutes(totalMinutes);
+      const totalReports = computeTotalReports(nextRow);
+      const paye = computePaye(nextRow.role, nextRow.staff, totalMinutes);
 
-    const payload = {
-      [field]: value,
-      total_heures: totalFormatted,
-      total_reports: totalReports,
-      paye,
-    };
+      return {
+        ...nextRow,
+        total_heures: totalFormatted,
+        total_reports: totalReports,
+        paye,
+      };
+    })
+  );
+}
 
-    setRows((prev) =>
-      prev.map((row) =>
-        row.id === id
-          ? {
-              ...row,
-              [field]: value,
-              total_heures: totalFormatted,
-              total_reports: totalReports,
-              paye,
-            }
-          : row
-      )
-    );
+async function saveRow(id: number) {
+  const row = rows.find((r) => r.id === id);
+  if (!row) return;
 
-    const { error } = await supabase
-      .from("heures_staff")
-      .update(payload)
-      .eq("id", id);
+  const totalMinutes = computeTotalMinutes(row);
+  const totalFormatted = formatMinutes(totalMinutes);
+  const totalReports = computeTotalReports(row);
+  const paye = computePaye(row.role, row.staff, totalMinutes);
 
-    if (error) {
-      console.error("Erreur update heures staff :", error);
-      await loadRows();
-    }
+  const payload = {
+    semaine: row.semaine,
+    staff: row.staff,
+    role: row.role,
+    lundi: row.lundi,
+    mardi: row.mardi,
+    mercredi: row.mercredi,
+    jeudi: row.jeudi,
+    vendredi: row.vendredi,
+    samedi: row.samedi,
+    dimanche: row.dimanche,
+    reports_lundi: row.reports_lundi,
+    reports_mardi: row.reports_mardi,
+    reports_mercredi: row.reports_mercredi,
+    reports_jeudi: row.reports_jeudi,
+    reports_vendredi: row.reports_vendredi,
+    reports_samedi: row.reports_samedi,
+    reports_dimanche: row.reports_dimanche,
+    total_reports: totalReports,
+    total_heures: totalFormatted,
+    paye,
+    auteur: row.auteur,
+  };
+
+  const { error } = await supabase
+    .from("heures_staff")
+    .update(payload)
+    .eq("id", id);
+
+  if (error) {
+    console.error("Erreur sauvegarde heures staff :", error);
+    await loadRows();
   }
+}
 
-  async function clearAll() {
-    const ok = window.confirm("Tu veux vraiment vider toutes les heures staff ?");
-    if (!ok) return;
+async function clearAll() {
+  const ok = window.confirm("Tu veux vraiment vider toutes les heures staff ?");
+  if (!ok) return;
 
-    const { error } = await supabase.from("heures_staff").delete().neq("id", 0);
-    if (error) {
-      console.error("Erreur clear heures staff :", error);
-    }
+  const { error } = await supabase.from("heures_staff").delete().neq("id", 0);
+  if (error) {
+    console.error("Erreur clear heures staff :", error);
   }
+}
 
   const totalStaff = rows.length;
   const totalMinutes = useMemo(
@@ -403,18 +433,27 @@ export default function HeuresStaffPage() {
                               </div>
 
                               <input
-                                value={row.auteur || ""}
-                                onChange={(e) => updateRow(row.id, "auteur", e.target.value)}
-                                placeholder="Auteur"
-                                className={`${inputClass} border-purple-500/30 bg-purple-950/10`}
-                              />
+  value={row.auteur || ""}
+  onChange={(e) => updateRow(row.id, "auteur", e.target.value)}
+  placeholder="Auteur"
+  className={`${inputClass} border-purple-500/30 bg-purple-950/10`}
+/>
 
-                              <button
-                                onClick={() => deleteRow(row.id)}
-                                className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
-                              >
-                                Suppr.
-                              </button>
+<div className="flex flex-col gap-2">
+  <button
+    onClick={() => saveRow(row.id)}
+    className="rounded-xl border border-green-600/60 bg-green-950/50 px-4 py-3 font-semibold text-green-300 transition hover:bg-green-900/60"
+  >
+    Sauvegarder
+  </button>
+
+  <button
+    onClick={() => deleteRow(row.id)}
+    className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
+  >
+    Suppr.
+  </button>
+</div>
                             </div>
                           );
                         })}
