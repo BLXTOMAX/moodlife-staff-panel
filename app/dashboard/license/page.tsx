@@ -10,6 +10,7 @@ type LicenseEntry = {
   license: string;
   boutique_id: string;
   discord_name: string;
+  email: string | null;
   created_at: string;
   created_by: string | null;
 };
@@ -53,6 +54,7 @@ export default function LicensePage() {
     license: "",
     boutiqueId: "",
     discordName: "",
+    email: "",
   });
   const [search, setSearch] = useState("");
   const [entries, setEntries] = useState<LicenseEntry[]>([]);
@@ -61,12 +63,32 @@ export default function LicensePage() {
   const [sessionEmail, setSessionEmail] = useState("");
   const [canManageAll, setCanManageAll] = useState(false);
 
-  async function loadEntries() {
+  async function loadEntries(
+    currentSessionEmail?: string,
+    currentCanManageAll?: boolean
+  ) {
     try {
-      const { data, error } = await supabase
+      const email = (currentSessionEmail ?? sessionEmail ?? "").trim();
+      const canSeeAll = currentCanManageAll ?? canManageAll;
+
+      let query = supabase
         .from("license_entries")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (!canSeeAll) {
+        if (!email) {
+          setEntries([]);
+          setIsLoaded(true);
+          return;
+        }
+
+        query = query.or(
+          `created_by.eq.${email},email.eq.${email}`
+        );
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("Erreur chargement licences :", error);
@@ -84,17 +106,17 @@ export default function LicensePage() {
   }
 
   useEffect(() => {
-    loadEntries();
-  }, []);
-
-  useEffect(() => {
     const email = getSessionEmail() || "";
     setSessionEmail(email);
   }, []);
 
   useEffect(() => {
     async function loadManagePermission() {
-      if (!sessionEmail) return;
+      if (!sessionEmail) {
+        setCanManageAll(false);
+        await loadEntries("", false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from("user_permissions")
@@ -102,12 +124,20 @@ export default function LicensePage() {
         .eq("email", sessionEmail);
 
       if (error) {
-        console.error("Erreur permission mail-acces :", error);
+        console.error("Erreur permission mail access :", error);
+        setCanManageAll(false);
+        await loadEntries(sessionEmail, false);
         return;
       }
 
       const permissions = (data || []).map((item) => item.permission);
-      setCanManageAll(permissions.includes("/dashboard/mail-acces"));
+      const hasMailAccess =
+        permissions.includes("Mail Access") ||
+        permissions.includes("Mail Accès") ||
+        permissions.includes("/dashboard/mail-acces");
+
+      setCanManageAll(hasMailAccess);
+      await loadEntries(sessionEmail, hasMailAccess);
     }
 
     loadManagePermission();
@@ -125,9 +155,10 @@ export default function LicensePage() {
     if (
       !form.license.trim() ||
       !form.boutiqueId.trim() ||
-      !form.discordName.trim()
+      !form.discordName.trim() ||
+      !form.email.trim()
     ) {
-      setMessage("Merci de remplir les 3 champs.");
+      setMessage("Merci de remplir les 4 champs.");
       return;
     }
 
@@ -135,6 +166,7 @@ export default function LicensePage() {
       license: form.license.trim(),
       boutique_id: form.boutiqueId.trim(),
       discord_name: form.discordName.trim(),
+      email: form.email.trim().toLowerCase(),
       created_by: sessionEmail || null,
     };
 
@@ -150,6 +182,7 @@ export default function LicensePage() {
       license: "",
       boutiqueId: "",
       discordName: "",
+      email: "",
     });
 
     setMessage("Licence ajoutée avec succès.");
@@ -161,7 +194,10 @@ export default function LicensePage() {
       canManageAll ||
       (entry.created_by &&
         sessionEmail &&
-        entry.created_by.toLowerCase() === sessionEmail.toLowerCase());
+        entry.created_by.toLowerCase() === sessionEmail.toLowerCase()) ||
+      (entry.email &&
+        sessionEmail &&
+        entry.email.toLowerCase() === sessionEmail.toLowerCase());
 
     if (!canDelete) {
       setMessage("Tu ne peux supprimer que tes propres licences.");
@@ -190,7 +226,7 @@ export default function LicensePage() {
 
     return entries.filter((entry) =>
       normalize(
-        `${entry.license} ${entry.boutique_id} ${entry.discord_name}`
+        `${entry.license} ${entry.boutique_id} ${entry.discord_name} ${entry.email || ""}`
       ).includes(q)
     );
   }, [entries, search]);
@@ -222,8 +258,9 @@ export default function LicensePage() {
           <div className="mt-4 h-px w-40 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
 
           <p className="mt-4 max-w-4xl text-sm leading-7 text-white/82">
-            Ajoutez une licence, un ID boutique et un nom Discord. Toutes les
-            entrées sont désormais synchronisées pour tout le staff.
+            Ajoutez une licence, un ID boutique, un nom Discord et un mail.
+            Seule la personne concernée ou les personnes avec la permission
+            Mail Access pourront voir les entrées.
           </p>
         </div>
       </div>
@@ -232,7 +269,7 @@ export default function LicensePage() {
         <StatCard
           label="Entrées"
           value={stats.total}
-          description="Nombre total de licences enregistrées."
+          description="Nombre total de licences visibles pour ton compte."
         />
         <StatCard
           label="Résultats visibles"
@@ -243,7 +280,7 @@ export default function LicensePage() {
         <StatCard
           label="Sauvegarde"
           value={stats.loaded}
-          description="Les données sont partagées entre tous les comptes."
+          description="Les données sont filtrées selon les permissions."
           valueClassName={isLoaded ? "text-emerald-300" : "text-yellow-300"}
         />
       </div>
@@ -265,7 +302,7 @@ export default function LicensePage() {
           </div>
 
           <div className="mt-5 rounded-2xl border border-yellow-400/15 bg-yellow-400/[0.06] p-4 text-sm leading-6 text-white/78">
-            Merci de remplir correctement les trois champs avant validation.
+            Merci de remplir correctement les 4 champs avant validation.
           </div>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -308,6 +345,20 @@ export default function LicensePage() {
                 value={form.discordName}
                 onChange={handleChange}
                 placeholder="Pseudo Discord"
+                className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-white/90">
+                Mail
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="mail@exemple.com"
                 className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
               />
             </div>
@@ -367,7 +418,10 @@ export default function LicensePage() {
                   (entry.created_by &&
                     sessionEmail &&
                     entry.created_by.toLowerCase() ===
-                      sessionEmail.toLowerCase());
+                      sessionEmail.toLowerCase()) ||
+                  (entry.email &&
+                    sessionEmail &&
+                    entry.email.toLowerCase() === sessionEmail.toLowerCase());
 
                 return (
                   <div
@@ -401,6 +455,15 @@ export default function LicensePage() {
                             </p>
                             <p className="mt-1 text-sm text-white/85">
                               {entry.discord_name}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.2em] text-white/45">
+                              Mail
+                            </p>
+                            <p className="mt-1 text-sm text-white/85">
+                              {entry.email || "Non renseigné"}
                             </p>
                           </div>
                         </div>
