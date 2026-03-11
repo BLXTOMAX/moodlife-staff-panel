@@ -112,6 +112,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <SitePresenceTracker />
       <div className="flex min-h-screen">
         <Sidebar />
         <main className="flex-1 overflow-x-hidden">{children}</main>
