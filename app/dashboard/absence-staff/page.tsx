@@ -22,11 +22,22 @@ function formatDate(date: string) {
 function getStatusClasses(status: Absence["status"]) {
   switch (status) {
     case "Validée":
-      return "border-emerald-400/20 bg-emerald-500/10 text-emerald-300";
+      return "border-emerald-400/25 bg-emerald-500/15 text-emerald-200 shadow-[0_0_0_1px_rgba(16,185,129,0.08)]";
     case "Refusée":
-      return "border-red-400/20 bg-red-500/10 text-red-300";
+      return "border-rose-400/25 bg-rose-500/15 text-rose-200 shadow-[0_0_0_1px_rgba(244,63,94,0.08)]";
     default:
-      return "border-yellow-400/20 bg-yellow-500/10 text-yellow-300";
+      return "border-amber-300/25 bg-amber-400/15 text-amber-100 shadow-[0_0_0_1px_rgba(251,191,36,0.08)]";
+  }
+}
+
+function getStatusDot(status: Absence["status"]) {
+  switch (status) {
+    case "Validée":
+      return "bg-emerald-300";
+    case "Refusée":
+      return "bg-rose-300";
+    default:
+      return "bg-amber-300";
   }
 }
 
@@ -35,19 +46,26 @@ function StatCard({
   value,
   valueClassName = "text-yellow-300",
   description,
+  glowClassName = "from-yellow-500/20 via-yellow-300/10 to-transparent",
 }: {
   title: string;
   value: string | number;
   valueClassName?: string;
   description: string;
+  glowClassName?: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-yellow-400/15 bg-[#111111]/88 p-5 shadow-[0_10px_28px_rgba(0,0,0,0.30)] backdrop-blur-md">
-      <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-        {title}
-      </p>
-      <p className={`mt-3 text-3xl font-black ${valueClassName}`}>{value}</p>
-      <p className="mt-2 text-sm leading-6 text-white/60">{description}</p>
+    <div className="group relative overflow-hidden rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] p-5 shadow-[0_12px_32px_rgba(0,0,0,0.32)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:border-white/15">
+      <div
+        className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-r ${glowClassName} opacity-80 blur-2xl transition group-hover:opacity-100`}
+      />
+      <div className="relative">
+        <p className="text-[11px] uppercase tracking-[0.28em] text-white/55">
+          {title}
+        </p>
+        <p className={`mt-3 text-3xl font-black ${valueClassName}`}>{value}</p>
+        <p className="mt-2 text-sm leading-6 text-white/60">{description}</p>
+      </div>
     </div>
   );
 }
@@ -217,23 +235,27 @@ export default function AbsenceStaffPage() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-yellow-400/15 bg-gradient-to-r from-black/80 via-black/70 to-black/40 p-8 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
-        <div className="absolute inset-0 bg-black/35" />
-        <div className="absolute -left-10 top-0 h-40 w-40 rounded-full bg-yellow-400/10 blur-3xl" />
-        <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-yellow-300/10 blur-3xl" />
+      <section className="relative overflow-hidden rounded-[34px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.16),transparent_28%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.14),transparent_30%),linear-gradient(135deg,rgba(0,0,0,0.95),rgba(17,17,17,0.82),rgba(9,9,11,0.96))] p-8 shadow-[0_18px_50px_rgba(0,0,0,0.48)]">
+        <div className="absolute inset-0 bg-[linear-gradient(to_bottom_right,rgba(255,255,255,0.03),transparent,rgba(255,255,255,0.02))]" />
+        <div className="absolute -left-14 top-0 h-44 w-44 rounded-full bg-yellow-400/10 blur-3xl" />
+        <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-fuchsia-400/10 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-40 w-40 rounded-full bg-cyan-400/10 blur-3xl" />
 
         <div className="relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-yellow-300">
-            Absence Staff
-          </p>
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-400/10 px-4 py-1.5">
+            <span className="h-2 w-2 rounded-full bg-yellow-300 shadow-[0_0_12px_rgba(253,224,71,0.9)]" />
+            <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-yellow-200">
+              Absence Staff
+            </p>
+          </div>
 
-          <h1 className="mt-4 text-4xl font-black tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.75)]">
+          <h1 className="mt-5 text-4xl font-black tracking-tight text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.65)] md:text-5xl">
             Gestion des absences
           </h1>
 
-          <div className="mt-4 h-px w-44 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
+          <div className="mt-4 h-px w-52 bg-gradient-to-r from-yellow-400 via-fuchsia-400/70 to-cyan-400/20" />
 
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-white/82">
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-white/78 md:text-[15px]">
             Les absences doivent concerner une ou plusieurs journées complètes,
             jamais une soirée ou un après-midi.
           </p>
@@ -246,31 +268,38 @@ export default function AbsenceStaffPage() {
           value={stats.total}
           valueClassName="text-white"
           description="Nombre total d’absences enregistrées."
+          glowClassName="from-white/10 via-slate-300/5 to-transparent"
         />
         <StatCard
           title="En attente"
           value={stats.pending}
-          valueClassName="text-yellow-300"
+          valueClassName="text-amber-200"
           description="Demandes encore en attente de traitement."
+          glowClassName="from-amber-400/20 via-yellow-300/10 to-transparent"
         />
         <StatCard
           title="Validées"
           value={stats.validated}
-          valueClassName="text-emerald-300"
+          valueClassName="text-emerald-200"
           description="Absences déjà approuvées."
+          glowClassName="from-emerald-400/20 via-green-300/10 to-transparent"
         />
         <StatCard
           title="Refusées"
           value={stats.refused}
-          valueClassName="text-red-300"
+          valueClassName="text-rose-200"
           description="Absences refusées."
+          glowClassName="from-rose-400/20 via-pink-300/10 to-transparent"
         />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
-          <div className="mb-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
+        <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] p-6 shadow-[0_14px_34px_rgba(0,0,0,0.36)] backdrop-blur-xl">
+          <div className="absolute right-0 top-0 h-36 w-36 rounded-full bg-yellow-400/10 blur-3xl" />
+          <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-fuchsia-400/10 blur-3xl" />
+
+          <div className="relative mb-5">
+            <p className="text-xs uppercase tracking-[0.24em] text-yellow-200/80">
               Déclaration
             </p>
             <h2 className="mt-2 text-2xl font-black text-white">
@@ -282,11 +311,16 @@ export default function AbsenceStaffPage() {
             </p>
           </div>
 
-          <div className="mb-5 rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm leading-6 text-yellow-200">
-            Important : ce formulaire concerne uniquement des journées complètes.
+          <div className="relative mb-5 rounded-2xl border border-amber-300/20 bg-[linear-gradient(135deg,rgba(251,191,36,0.14),rgba(244,114,182,0.08))] p-4 text-sm leading-6 text-amber-100 shadow-[0_10px_22px_rgba(0,0,0,0.18)]">
+            <span className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-100/90">
+              Info
+            </span>
+            <p>
+              Important : ce formulaire concerne uniquement des journées complètes.
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="relative space-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium text-white/90">
                 Nom du staff
@@ -296,7 +330,7 @@ export default function AbsenceStaffPage() {
                 name="staffName"
                 value={form.staffName}
                 onChange={handleChange}
-                className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
+                className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-300/40 focus:bg-black/45 focus:shadow-[0_0_0_4px_rgba(250,204,21,0.08)]"
                 placeholder="Ex : Pariss"
               />
             </div>
@@ -310,7 +344,7 @@ export default function AbsenceStaffPage() {
                 value={form.reason}
                 onChange={handleChange}
                 rows={5}
-                className="w-full resize-none rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45"
+                className="w-full resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-fuchsia-300/35 focus:bg-black/45 focus:shadow-[0_0_0_4px_rgba(217,70,239,0.08)]"
                 placeholder="Explique la raison..."
               />
             </div>
@@ -325,7 +359,7 @@ export default function AbsenceStaffPage() {
                   name="startDate"
                   value={form.startDate}
                   onChange={handleChange}
-                  className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition focus:border-yellow-400/30 focus:bg-black/45"
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-cyan-300/35 focus:bg-black/45 focus:shadow-[0_0_0_4px_rgba(34,211,238,0.08)]"
                 />
               </div>
 
@@ -338,23 +372,28 @@ export default function AbsenceStaffPage() {
                   name="endDate"
                   value={form.endDate}
                   onChange={handleChange}
-                  className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition focus:border-yellow-400/30 focus:bg-black/45"
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-cyan-300/35 focus:bg-black/45 focus:shadow-[0_0_0_4px_rgba(34,211,238,0.08)]"
                 />
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-bold text-black transition hover:brightness-105 md:w-auto"
+              className="group inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#facc15,#f59e0b,#fb7185)] px-5 py-3 text-sm font-black text-black shadow-[0_14px_28px_rgba(250,204,21,0.18)] transition hover:-translate-y-0.5 hover:brightness-105 md:w-auto"
             >
-              Envoyer l’absence
+              <span className="transition group-hover:translate-x-0.5">
+                Envoyer l’absence
+              </span>
             </button>
           </form>
         </div>
 
-        <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
-          <div className="mb-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
+        <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] p-6 shadow-[0_14px_34px_rgba(0,0,0,0.36)] backdrop-blur-xl">
+          <div className="absolute right-10 top-0 h-36 w-36 rounded-full bg-cyan-400/10 blur-3xl" />
+          <div className="absolute bottom-0 right-0 h-36 w-36 rounded-full bg-fuchsia-400/10 blur-3xl" />
+
+          <div className="relative mb-5">
+            <p className="text-xs uppercase tracking-[0.24em] text-yellow-200/80">
               Historique
             </p>
             <h2 className="mt-2 text-2xl font-black text-white">
@@ -366,14 +405,14 @@ export default function AbsenceStaffPage() {
             </p>
           </div>
 
-          <div className="space-y-6">
+          <div className="relative space-y-6">
             {Object.entries(groupedByMonth).map(([month, items]) => (
               <div key={month}>
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-black uppercase tracking-[0.22em] text-yellow-300">
+                  <h3 className="bg-gradient-to-r from-yellow-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-sm font-black uppercase tracking-[0.22em] text-transparent">
                     {month}
                   </h3>
-                  <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/55">
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                     {items.length} absence{items.length > 1 ? "s" : ""}
                   </span>
                 </div>
@@ -382,23 +421,31 @@ export default function AbsenceStaffPage() {
                   {items.map((absence) => (
                     <div
                       key={absence.id}
-                      className="rounded-[24px] border border-white/10 bg-black/25 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.18)] transition hover:border-yellow-400/20 hover:bg-black/30"
+                      className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.02))] p-5 shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition duration-300 hover:-translate-y-0.5 hover:border-yellow-300/20"
                     >
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-yellow-300 via-fuchsia-400 to-cyan-400 opacity-80" />
+                      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-r from-yellow-400/5 via-fuchsia-400/5 to-cyan-400/5 opacity-0 transition group-hover:opacity-100" />
+
+                      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
-                          <p className="text-lg font-bold text-white">
-                            {absence.staffName}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-lg font-bold text-white">
+                              {absence.staffName}
+                            </p>
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/50">
+                              Staff
+                            </span>
+                          </div>
 
                           <p className="mt-2 text-sm leading-6 text-white/70">
                             {absence.reason}
                           </p>
 
                           <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-white/70">
+                            <span className="rounded-full border border-cyan-300/15 bg-cyan-400/10 px-3 py-1 text-cyan-100">
                               Du {formatDate(absence.startDate)}
                             </span>
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-white/70">
+                            <span className="rounded-full border border-fuchsia-300/15 bg-fuchsia-400/10 px-3 py-1 text-fuchsia-100">
                               Au {formatDate(absence.endDate)}
                             </span>
                           </div>
@@ -406,10 +453,15 @@ export default function AbsenceStaffPage() {
 
                         <div className="flex flex-col items-end gap-2">
                           <span
-                            className={`inline-flex shrink-0 rounded-xl border px-3 py-1.5 text-xs font-semibold ${getStatusClasses(
+                            className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold ${getStatusClasses(
                               absence.status
                             )}`}
                           >
+                            <span
+                              className={`h-2 w-2 rounded-full ${getStatusDot(
+                                absence.status
+                              )}`}
+                            />
                             {absence.status}
                           </span>
 
@@ -421,7 +473,7 @@ export default function AbsenceStaffPage() {
                                   onClick={() =>
                                     updateAbsenceStatus(absence.id, "Validée")
                                   }
-                                  className="rounded-xl bg-emerald-500/20 px-3 py-1 text-xs text-emerald-300 hover:bg-emerald-500/30"
+                                  className="rounded-xl border border-emerald-400/15 bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/25"
                                 >
                                   Valider
                                 </button>
@@ -431,7 +483,7 @@ export default function AbsenceStaffPage() {
                                   onClick={() =>
                                     updateAbsenceStatus(absence.id, "Refusée")
                                   }
-                                  className="rounded-xl bg-red-500/20 px-3 py-1 text-xs text-red-300 hover:bg-red-500/30"
+                                  className="rounded-xl border border-rose-400/15 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-200 transition hover:bg-rose-500/25"
                                 >
                                   Refuser
                                 </button>
@@ -446,7 +498,8 @@ export default function AbsenceStaffPage() {
             ))}
 
             {absences.length === 0 && (
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-6 text-sm text-white/60">
+              <div className="rounded-[24px] border border-dashed border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-8 text-center text-sm text-white/60">
+                <div className="mx-auto mb-3 h-12 w-12 rounded-2xl bg-white/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" />
                 Aucune absence enregistrée.
               </div>
             )}
