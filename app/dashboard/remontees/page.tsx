@@ -95,7 +95,7 @@ return (
 
 {/* HEADER */}
 
-<div className="panel-card p-6">
+<div className="panel-card p-6 border border-yellow-500/20 shadow-[0_0_20px_rgba(255,200,0,0.05)]">
 
 <div className="flex flex-wrap items-center justify-between gap-4">
 
@@ -201,7 +201,7 @@ Aucune remontée pour le moment
 
 <tr
 key={row.id}
-className="border-b border-yellow-500/10 hover:bg-yellow-500/[0.04] transition"
+className="border-b border-yellow-500/20 hover:bg-yellow-500/[0.06] transition"
 >
 
 {/* STAFF */}
@@ -251,7 +251,7 @@ placeholder="Description détaillée"
 onChange={(e) =>
 updateRow(row.id, "description", e.target.value)
 }
-className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-yellow-400/40 resize-none"
+className="w-full px-3 py-2 rounded-xl bg-black/40 border border-yellow-500/20 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-yellow-400/60"
 />
 
 </td>
@@ -335,7 +335,7 @@ Suppr.
 
 function Stat({ title, value, color }: any) {
 return (
-<div className="panel-card p-5">
+<div className="panel-card p-5 border border-yellow-500/10 hover:border-yellow-400/30 transition">
 
 <p className="text-xs uppercase tracking-wider text-zinc-400">
 {title}
@@ -363,7 +363,7 @@ return (
 value={value}
 placeholder={placeholder}
 onChange={(e) => onChange(e.target.value)}
-className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-yellow-400/40"
+className="w-full px-3 py-2 rounded-xl bg-black/40 border border-yellow-500/20 focus:border-yellow-400/60"
 />
 );
 }
