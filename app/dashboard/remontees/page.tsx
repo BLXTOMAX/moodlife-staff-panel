@@ -91,13 +91,13 @@ localStorage.removeItem(STORAGE_KEY);
 
 return (
 
-<div className="space-y-8 relative">
-  <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(255,200,0,0.18),transparent_70%)]" />
+<div className="relative min-h-screen overflow-hidden space-y-8 bg-[radial-gradient(circle_at_top,rgba(255,200,0,0.16),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(255,200,0,0.10),transparent_32%),linear-gradient(180deg,rgba(255,215,0,0.03),rgba(0,0,0,0))]">
+  <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(rgba(255,200,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,200,0,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
   <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_bottom,rgba(255,200,0,0.12),transparent_70%)]" />
 
 {/* HEADER */}
 
-<div className="panel-card p-6 border border-yellow-500/20 shadow-[0_0_20px_rgba(255,200,0,0.05)]">
+<div className="panel-card p-6 border border-yellow-400/20 bg-yellow-500/[0.03] shadow-[0_0_30px_rgba(255,200,0,0.08)] backdrop-blur-sm">
 
 <div className="flex flex-wrap items-center justify-between gap-4">
 
@@ -337,7 +337,7 @@ Suppr.
 
 function Stat({ title, value, color }: any) {
 return (
-<div className="panel-card p-5 border border-yellow-500/10 hover:border-yellow-400/30 transition">
+<div className="panel-card p-5 border border-yellow-400/15 bg-yellow-500/[0.025] hover:border-yellow-300/30 transition">
 
 <p className="text-xs uppercase tracking-wider text-zinc-400">
 {title}
