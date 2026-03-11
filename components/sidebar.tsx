@@ -188,13 +188,13 @@ export default function Sidebar() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,215,0,0.12),transparent_30%)]" />
 
           <div className="relative flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-yellow-400/20 bg-yellow-400 shadow-[0_8px_20px_rgba(250,204,21,0.18)]">
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-yellow-400/20 bg-[#0b0b0b] p-1 shadow-[0_8px_20px_rgba(250,204,21,0.18)]">
   <Image
     src="/logo-moodlife.png"
     alt="MoodLife"
     width={56}
     height={56}
-    className="h-full w-full object-cover"
+    className="h-full w-full object-contain"
   />
 </div>
 
