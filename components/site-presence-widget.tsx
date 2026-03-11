@@ -70,23 +70,23 @@ export default function SitePresenceWidget() {
   }, []);
 
   const { onlineUsers, offlineUsers } = useMemo(() => {
-    const now = Date.now();
+  const now = Date.now();
 
-    const online = rows.filter((user) => {
-      const lastSeen = new Date(user.last_seen).getTime();
-      return user.is_online && now - lastSeen < 60000;
-    });
+  const online = rows.filter((user) => {
+    const lastSeen = new Date(user.last_seen).getTime();
+    return user.is_online && now - lastSeen < 12000;
+  });
 
-    const offline = rows.filter((user) => {
-      const lastSeen = new Date(user.last_seen).getTime();
-      return !user.is_online || now - lastSeen >= 60000;
-    });
+  const offline = rows.filter((user) => {
+    const lastSeen = new Date(user.last_seen).getTime();
+    return !user.is_online || now - lastSeen >= 12000;
+  });
 
-    return {
-      onlineUsers: online,
-      offlineUsers: offline,
-    };
-  }, [rows]);
+  return {
+    onlineUsers: online,
+    offlineUsers: offline,
+  };
+}, [rows]);
 
   return (
     <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-6 shadow-[0_14px_34px_rgba(0,0,0,0.36)] backdrop-blur-xl">

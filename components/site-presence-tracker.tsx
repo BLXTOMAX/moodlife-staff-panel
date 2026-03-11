@@ -8,32 +8,65 @@ export default function SitePresenceTracker() {
   useEffect(() => {
     const email = getSessionEmail();
 
-    console.log("TRACKER EMAIL =", email);
+    if (!email) return;
 
-    if (!email) {
-      console.log("Aucun email trouvé");
-      return;
-    }
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
 
     const markOnline = async () => {
-      const { data, error } = await supabase.from("site_presence").upsert({
+      await supabase.from("site_presence").upsert({
         email,
         name: email,
         is_online: true,
         connected_at: new Date().toISOString(),
         last_seen: new Date().toISOString(),
       });
+    };
 
-      console.log("UPSERT RESULT =", { data, error });
+    const updateHeartbeat = async () => {
+      await supabase
+        .from("site_presence")
+        .update({
+          is_online: true,
+          last_seen: new Date().toISOString(),
+        })
+        .eq("email", email);
+    };
 
-      if (error) {
-        console.error("Erreur Supabase =", error);
-      } else {
-        console.log("Utilisateur enregistré online");
-      }
+    const markOffline = async () => {
+      await supabase
+        .from("site_presence")
+        .update({
+          is_online: false,
+          last_seen: new Date().toISOString(),
+        })
+        .eq("email", email);
     };
 
     markOnline();
+
+    heartbeat = setInterval(() => {
+      updateHeartbeat();
+    }, 5000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        updateHeartbeat();
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      markOffline();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      if (heartbeat) clearInterval(heartbeat);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      markOffline();
+    };
   }, []);
 
   return null;
