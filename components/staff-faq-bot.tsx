@@ -16,6 +16,7 @@ type FaqItem = {
   title: string;
   answer: string;
   command?: string;
+  category?: string;
 };
 
 type Message = {
@@ -24,6 +25,7 @@ type Message = {
 };
 
 const faqData: FaqItem[] = [
+  // COMMANDES STAFF
   {
     keywords: ["tp", "teleport", "téléport", "goto", "aller joueur"],
     title: "Téléportation vers un joueur",
@@ -55,7 +57,7 @@ const faqData: FaqItem[] = [
     command: "/ban ID Temps Raison",
   },
   {
-    keywords: ["ban offline", "banoffline", "joueur déco", "joueur deconnecté", "joueur déconnecté"],
+    keywords: ["ban offline", "banoffline", "joueur deco", "joueur déconnecté"],
     title: "Ban joueur déconnecté",
     answer: "Pour bannir un joueur déconnecté, utilisez /banoffline licence Temps Raison.",
     command: "/banoffline licence Temps Raison",
@@ -73,7 +75,7 @@ const faqData: FaqItem[] = [
     command: "/sprison ID",
   },
   {
-    keywords: ["registeroff", "register joueur deco", "inscrire joueur déco"],
+    keywords: ["registeroff", "register joueur deco", "inscrire joueur deco"],
     title: "Register hors ligne",
     answer: "Pour register quelqu’un qui est déconnecté, utilisez /registeroff licence.",
     command: "/registeroff licence",
@@ -95,6 +97,60 @@ const faqData: FaqItem[] = [
     title: "Commande anticheat",
     answer: "Pour unban via Waveshield depuis F8, utilisez : Waveshield unban ID. Réservé aux admins autorisés.",
     command: "F8 : Waveshield unban ID",
+  },
+
+  // RÈGLES STAFF
+  {
+    keywords: ["regles", "règles", "comportement staff", "attitude staff"],
+    title: "Règles Staff",
+    answer: "Consulte la catégorie Règles Staff pour les obligations de comportement, d’impartialité, d’activité et de respect du règlement interne.",
+  },
+  {
+    keywords: ["conflit", "abus", "favoritisme", "impartialité"],
+    title: "Impartialité staff",
+    answer: "Un staff doit rester impartial, éviter tout abus et ne pas favoriser un joueur ou un groupe.",
+  },
+
+  // LICENSE
+  {
+    keywords: ["license", "licence", "identifier", "identifiant joueur"],
+    title: "Licence joueur",
+    answer: "La catégorie License sert à retrouver ou utiliser la licence d’un joueur pour certaines actions comme banoffline ou unban.",
+  },
+
+  // MAIL SUICIDE RP
+  {
+    keywords: ["mail suicide", "suicide rp", "ticket suicide", "demande suicide"],
+    title: "Mail Suicide RP",
+    answer: "La catégorie Mail Suicide RP sert à traiter les demandes liées aux suicides RP selon la procédure interne du serveur.",
+  },
+
+  // ABSENCE STAFF
+  {
+    keywords: ["absence", "absence staff", "indisponible", "absence panel"],
+    title: "Absence Staff",
+    answer: "La catégorie Absence Staff permet d’annoncer une absence ou une indisponibilité selon le format demandé par l’équipe.",
+  },
+
+  // ESPACE S-A / GÉRANT-STAFF
+  {
+    keywords: ["s-a", "gerant staff", "gérant staff", "espace sa", "espace gérant"],
+    title: "Espace S-A / Gérant-Staff",
+    answer: "Cette catégorie est réservée aux échanges et informations internes pour les S-A et Gérant-Staff.",
+  },
+
+  // DEBAN NON AUTORISÉ
+  {
+    keywords: ["deban", "deban non autorisé", "unban non autorisé", "déban"],
+    title: "Deban Non Autorisé",
+    answer: "Les demandes ou actions de déban non autorisées doivent suivre la procédure définie dans la catégorie Deban Non Autorisé.",
+  },
+
+  // MAIL ACCÈS
+  {
+    keywords: ["mail acces", "mail accès", "acces", "accès panel", "demande acces"],
+    title: "Mail accès",
+    answer: "La catégorie Mail accès sert à gérer les accès, autorisations et demandes liées aux outils ou espaces internes.",
   },
 ];
 
