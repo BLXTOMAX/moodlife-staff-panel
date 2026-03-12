@@ -242,16 +242,24 @@ export default function LoginPage() {
                   </div>
 
                   <button
-                    type="submit"
-                    disabled={loading}
-                    className="group relative mt-2 w-full overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] px-4 py-4 font-bold text-black shadow-[0_18px_34px_rgba(250,204,21,0.22)] transition duration-300 hover:scale-[1.01] hover:shadow-[0_22px_42px_rgba(250,204,21,0.30)] disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    <span className="relative z-10">
-                      {loading ? "Connexion..." : "Se connecter"}
-                    </span>
-                    <div className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100 bg-[linear-gradient(135deg,#facc15,#fde047,#fbbf24)]" />
-                  </button>
-                </form>
+  type="submit"
+  disabled={loading}
+  className="group relative mt-2 w-full overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] px-4 py-4 font-bold text-black shadow-[0_18px_34px_rgba(250,204,21,0.22)] transition duration-300 hover:scale-[1.01] hover:shadow-[0_22px_42px_rgba(250,204,21,0.30)] disabled:cursor-not-allowed disabled:opacity-70"
+>
+  <span className="relative z-10">
+    {loading ? "Connexion..." : "Se connecter"}
+  </span>
+  <div className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100 bg-[linear-gradient(135deg,#facc15,#fde047,#fbbf24)]" />
+</button>
+
+<a
+  href="/forgot-password"
+  className="mt-3 block text-center text-sm text-yellow-300/80 transition hover:text-yellow-200"
+>
+  Mot de passe oublié ?
+</a>
+
+</form>
 
                 <div className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-white/38">
                   <ShieldCheck className="h-3.5 w-3.5 text-yellow-300/70" />
