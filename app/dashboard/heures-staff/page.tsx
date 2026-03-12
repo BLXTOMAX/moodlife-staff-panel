@@ -77,6 +77,9 @@ export default function HeuresStaffPage() {
   const [createdWeeks, setCreatedWeeks] = useState<string[]>([]);
   const [showRanking, setShowRanking] = useState(false);
   const [openRole, setOpenRole] = useState<string | null>("Modérateur");
+  const [focusedStaffByRole, setFocusedStaffByRole] = useState<
+    Record<string, string | null>
+  >({});
 
   useEffect(() => {
     loadRows();
@@ -537,6 +540,15 @@ export default function HeuresStaffPage() {
           ROLE_ORDER.map((role) => {
             const group = groupedRows.get(role) || [];
             const isOpen = openRole === role;
+            const focusedStaff = focusedStaffByRole[role] || null;
+
+            const displayedGroup = focusedStaff
+              ? group.filter(
+                  (row) =>
+                    (row.staff || "").trim().toLowerCase() ===
+                    focusedStaff.trim().toLowerCase()
+                )
+              : group;
 
             return (
               <div
@@ -584,17 +596,71 @@ export default function HeuresStaffPage() {
                   </div>
                 </button>
 
+                {isOpen && group.length > 0 && (
+                  <div className="border-b border-yellow-500/10 bg-[#080808] px-5 py-4">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFocusedStaffByRole((prev) => ({
+                            ...prev,
+                            [role]: null,
+                          }))
+                        }
+                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                          !focusedStaff
+                            ? "border-yellow-400/30 bg-yellow-400/12 text-yellow-300"
+                            : "border-white/10 bg-white/[0.03] text-white/65 hover:border-yellow-400/20 hover:text-yellow-200"
+                        }`}
+                      >
+                        Voir tous
+                      </button>
+
+                      {group.map((row) => {
+                        const staffName = row.staff?.trim() || "Sans nom";
+                        const isActive =
+                          focusedStaff?.trim().toLowerCase() ===
+                          staffName.toLowerCase();
+
+                        return (
+                          <button
+                            key={`${role}-${row.id}`}
+                            type="button"
+                            onClick={() =>
+                              setFocusedStaffByRole((prev) => ({
+                                ...prev,
+                                [role]: staffName,
+                              }))
+                            }
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                              isActive
+                                ? "border-green-400/30 bg-green-500/10 text-green-300"
+                                : "border-white/10 bg-white/[0.03] text-white/70 hover:border-yellow-400/20 hover:text-yellow-200"
+                            }`}
+                          >
+                            {staffName}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <p className="text-xs text-white/45">
+                      Clique sur un staff pour l’isoler dans la catégorie {role}.
+                    </p>
+                  </div>
+                )}
+
                 {isOpen && (
                   <div className="overflow-x-auto">
                     <div className="min-w-[2450px]">
-                      <div className="grid grid-cols-[260px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 border-b border-yellow-500/10 bg-[#0b0b0b] px-4 py-4 text-xs font-bold uppercase text-yellow-300">
+                      <div className="grid grid-cols-[320px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 border-b border-yellow-500/10 bg-[#0b0b0b] px-4 py-4 text-xs font-bold uppercase text-yellow-300">
                         <div>Nom du staff</div>
                         <div>Semaine</div>
 
                         {DAY_LABELS.map((day, index) => (
                           <div key={day.key} className="leading-4">
                             <div>{day.short} h</div>
-                            <div className="mt-1 text-[10px] font-medium text-white/45 normal-case">
+                            <div className="mt-1 text-[10px] font-medium normal-case text-white/45">
                               {weekDates[index] || "--/--"}
                             </div>
                           </div>
@@ -615,13 +681,15 @@ export default function HeuresStaffPage() {
                         <div>Action</div>
                       </div>
 
-                      {group.length === 0 ? (
+                      {displayedGroup.length === 0 ? (
                         <div className="px-4 py-8 text-sm text-gray-500">
-                          Aucun staff dans cette catégorie pour cette semaine.
+                          {focusedStaff
+                            ? `Aucun résultat pour ${focusedStaff} dans cette catégorie.`
+                            : "Aucun staff dans cette catégorie pour cette semaine."}
                         </div>
                       ) : (
                         <div className="divide-y divide-yellow-500/10">
-                          {group.map((row) => {
+                          {displayedGroup.map((row) => {
                             const totalMinutesRow = computeTotalMinutes(row);
                             const totalReportsRow = computeTotalReports(row);
                             const paye = computePaye(
@@ -633,18 +701,35 @@ export default function HeuresStaffPage() {
                             return (
                               <div
                                 key={row.id}
-                                className={`grid grid-cols-[260px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4 ${
+                                className={`grid grid-cols-[320px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4 ${
                                   row.isNew ? "bg-yellow-500/5" : ""
                                 }`}
                               >
-                                <input
-                                  value={row.staff || ""}
-                                  onChange={(e) =>
-                                    updateRow(row.id, "staff", e.target.value)
-                                  }
-                                  placeholder="Nom du staff"
-                                  className={`${inputClass} border-yellow-500/30`}
-                                />
+                                <div className="space-y-2">
+                                  <input
+                                    value={row.staff || ""}
+                                    onChange={(e) =>
+                                      updateRow(row.id, "staff", e.target.value)
+                                    }
+                                    placeholder="Nom du staff"
+                                    className={`${inputClass} border-yellow-500/30`}
+                                  />
+
+                                  {row.staff?.trim() && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setFocusedStaffByRole((prev) => ({
+                                          ...prev,
+                                          [role]: row.staff.trim(),
+                                        }))
+                                      }
+                                      className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-300 transition hover:bg-yellow-500/20"
+                                    >
+                                      Isoler
+                                    </button>
+                                  )}
+                                </div>
 
                                 <input
                                   value={row.semaine || ""}
@@ -670,7 +755,7 @@ export default function HeuresStaffPage() {
                                       placeholder="2h30"
                                       className={
                                         isImprevu
-                                          ? `${inputClass} border-amber-400/40 bg-amber-500/10 text-amber-200 font-bold shadow-[0_0_0_1px_rgba(251,191,36,0.08)]`
+                                          ? `${inputClass} border-amber-400/40 bg-amber-500/10 font-bold text-amber-200 shadow-[0_0_0_1px_rgba(251,191,36,0.08)]`
                                           : `${inputClass} border-green-500/30 bg-green-950/10`
                                       }
                                     />
