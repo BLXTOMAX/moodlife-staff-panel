@@ -714,30 +714,35 @@ export default function HeuresStaffPage() {
                                 />
 
                                 {HOUR_DAYS.map((day) => {
-                                  const dayValue = String(row[day] || "");
-                                  const lowerValue = dayValue.trim().toLowerCase();
-                                  const isImprevu =
-                                    lowerValue === "imprévu" || lowerValue === "imprevu";
-                                  const isZeroHour = isZeroHourValue(dayValue);
+  const dayValue = String(row[day] || "");
+  const lowerValue = dayValue.trim().toLowerCase();
+  const isImprevu =
+    lowerValue === "imprévu" || lowerValue === "imprevu";
+  const isZeroHour = isZeroHourValue(dayValue);
+  const totalDayMinutes = parseDurationToMinutes(dayValue);
+  const isLessThanOneHour =
+    !isImprevu && !isZeroHour && totalDayMinutes > 0 && totalDayMinutes < 60;
 
-                                  return (
-                                    <input
-                                      key={String(day)}
-                                      value={dayValue}
-                                      onChange={(e) =>
-                                        updateRow(row.id, day, e.target.value)
-                                      }
-                                      placeholder="2h30"
-                                      className={
-                                        isImprevu
-                                          ? `${inputClass} border-blue-400/40 bg-blue-500/10 font-bold text-blue-200 shadow-[0_0_0_1px_rgba(96,165,250,0.08)]`
-                                          : isZeroHour
-                                          ? `${inputClass} border-red-400/40 bg-red-500/10 font-bold text-red-200 shadow-[0_0_0_1px_rgba(248,113,113,0.08)]`
-                                          : `${inputClass} border-green-500/30 bg-green-950/10`
-                                      }
-                                    />
-                                  );
-                                })}
+  return (
+    <input
+      key={String(day)}
+      value={dayValue}
+      onChange={(e) =>
+        updateRow(row.id, day, e.target.value)
+      }
+      placeholder="2h30"
+      className={
+        isImprevu
+          ? `${inputClass} border-blue-400/40 bg-blue-500/10 font-bold text-blue-200 shadow-[0_0_0_1px_rgba(96,165,250,0.08)]`
+          : isZeroHour
+          ? `${inputClass} border-red-400/40 bg-red-500/10 font-bold text-red-200 shadow-[0_0_0_1px_rgba(248,113,113,0.08)]`
+          : isLessThanOneHour
+          ? `${inputClass} border-yellow-400/40 bg-yellow-500/10 font-bold text-yellow-200 shadow-[0_0_0_1px_rgba(250,204,21,0.08)]`
+          : `${inputClass} border-green-500/30 bg-green-950/10`
+      }
+    />
+  );
+})}
 
                                 {REPORT_DAYS.map((day) => (
                                   <input
