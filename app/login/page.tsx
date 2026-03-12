@@ -1,12 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import { useMemo, useState } from "react";
 import { Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 18 }, (_, i) => ({
+        id: i,
+        left: `${5 + ((i * 17) % 90)}%`,
+        top: `${8 + ((i * 29) % 80)}%`,
+        size: 2 + (i % 4),
+        duration: 7 + (i % 6),
+        delay: (i % 5) * 0.8,
+      })),
+    []
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,87 +66,126 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050505] px-4">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(234,179,8,0.10),transparent_28%),radial-gradient(circle_at_right,rgba(250,204,21,0.08),transparent_24%)]" />
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#040404] px-4 py-10">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.18),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(234,179,8,0.08),transparent_26%),radial-gradient(circle_at_right,rgba(250,204,21,0.10),transparent_24%),linear-gradient(135deg,#030303,#090909,#050505)]" />
 
-      <div className="absolute inset-0 opacity-[0.06] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:72px_72px]" />
+      <div className="absolute inset-0 opacity-[0.06] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:70px_70px]" />
 
-      <div className="absolute left-1/2 top-[-80px] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-yellow-400/12 blur-[130px]" />
-      <div className="absolute bottom-[-100px] left-[-60px] h-[320px] w-[320px] rounded-full bg-amber-300/10 blur-[120px]" />
-      <div className="absolute right-[-40px] top-1/4 h-[260px] w-[260px] rounded-full bg-yellow-500/10 blur-[120px]" />
+      <div className="mood-orb absolute left-1/2 top-[-120px] h-[460px] w-[460px] -translate-x-1/2 rounded-full bg-yellow-400/12 blur-[140px]" />
+      <div className="mood-orb-slow absolute bottom-[-120px] left-[-80px] h-[320px] w-[320px] rounded-full bg-amber-300/10 blur-[130px]" />
+      <div className="mood-orb absolute right-[-80px] top-[20%] h-[300px] w-[300px] rounded-full bg-yellow-500/10 blur-[130px]" />
 
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[12%] top-[18%] h-2 w-2 rounded-full bg-yellow-300/40 blur-[1px]" />
-        <div className="absolute right-[16%] top-[24%] h-1.5 w-1.5 rounded-full bg-yellow-200/40 blur-[1px]" />
-        <div className="absolute bottom-[22%] left-[20%] h-1.5 w-1.5 rounded-full bg-yellow-400/35 blur-[1px]" />
-        <div className="absolute bottom-[18%] right-[18%] h-2 w-2 rounded-full bg-amber-200/30 blur-[1px]" />
+        {particles.map((particle) => (
+          <span
+            key={particle.id}
+            className="mood-particle absolute rounded-full bg-yellow-300/70 shadow-[0_0_16px_rgba(250,204,21,0.35)]"
+            style={{
+              left: particle.left,
+              top: particle.top,
+              width: `${particle.size}px`,
+              height: `${particle.size}px`,
+              animationDuration: `${particle.duration}s`,
+              animationDelay: `${particle.delay}s`,
+            }}
+          />
+        ))}
       </div>
 
-      <div className="relative w-full max-w-[1100px]">
-        <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="hidden lg:block">
+      <div className="relative w-full max-w-[1180px]">
+        <div className="grid items-center gap-10 lg:grid-cols-[1.08fr_0.92fr]">
+          <section className="hidden lg:block">
             <div className="max-w-xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.26em] text-yellow-300">
+              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-yellow-300">
                 <Sparkles className="h-3.5 w-3.5" />
-                Panel privé MoodLife
+                Accès privé MoodLife
               </div>
 
-              <h1 className="mt-6 text-6xl font-black leading-[0.95] tracking-tight text-white">
-                Accès Staff
-                <span className="block bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] bg-clip-text text-transparent">
-                
-                </span>
-              </h1>
+              <div className="mt-7 flex items-center gap-4">
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-[26px] border border-yellow-400/20 bg-yellow-400/10 shadow-[0_0_40px_rgba(250,204,21,0.08)]">
+                  <Image
+                    src="/moodlife-logo.png"
+                    alt="MoodLife"
+                    width={46}
+                    height={46}
+                    className="object-contain"
+                    priority
+                  />
+                </div>
+
+                <div>
+                  <p className="text-sm uppercase tracking-[0.3em] text-yellow-300/85">
+                    MoodLife
+                  </p>
+                  <h1 className="mt-2 text-6xl font-black leading-[0.95] tracking-tight text-white">
+                    Panel Staff
+                  </h1>
+                </div>
+              </div>
 
               <div className="mt-6 h-px w-44 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
 
               <p className="mt-6 max-w-lg text-base leading-8 text-white/68">
-                Connecte-toi à l’espace interne MoodLife pour accéder aux
-                outils, aux commandes staff, aux procédures et aux informations
-                essentielles du serveur.
+                Connecte-toi à l’espace interne pour accéder aux outils staff,
+                aux commandes, aux procédures et aux informations importantes du
+                serveur dans une interface premium.
               </p>
 
               <div className="mt-10 grid gap-4 sm:grid-cols-2">
-                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
-                  <div className="flex items-center gap-3 text-yellow-300">
-                    <ShieldCheck className="h-5 w-5" />
+                <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-2 text-yellow-300">
+                      <ShieldCheck className="h-5 w-5" />
+                    </div>
                     <p className="text-sm font-semibold text-white">
-                      Accès sécurisé
+                      Espace sécurisé
                     </p>
                   </div>
+
                   <p className="mt-3 text-sm leading-7 text-white/58">
-                    Connexion réservée à l’équipe autorisée avec session privée.
+                    Connexion réservée au staff autorisé avec accès interne
+                    protégé.
                   </p>
                 </div>
 
-                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
-                  <div className="flex items-center gap-3 text-yellow-300">
-                    <Sparkles className="h-5 w-5" />
+                <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-2 text-yellow-300">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
                     <p className="text-sm font-semibold text-white">
                       Interface premium
                     </p>
                   </div>
+
                   <p className="mt-3 text-sm leading-7 text-white/58">
-                    Un panel élégant, rapide et pensé pour une utilisation staff
-                    quotidienne.
+                    Un design haut de gamme pensé pour l’usage quotidien de
+                    l’équipe.
                   </p>
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="relative">
-            <div className="absolute inset-0 rounded-[36px] bg-[linear-gradient(135deg,rgba(250,204,21,0.12),rgba(255,255,255,0.02),rgba(0,0,0,0.02))] blur-2xl" />
+          <section className="relative">
+            <div className="absolute inset-0 rounded-[36px] bg-[linear-gradient(135deg,rgba(250,204,21,0.16),rgba(255,255,255,0.02),rgba(0,0,0,0.02))] blur-2xl" />
 
-            <div className="relative overflow-hidden rounded-[34px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(12,12,12,0.92),rgba(8,8,8,0.88))] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.56)] backdrop-blur-xl sm:p-10">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.08),transparent_30%)]" />
+            <div className="relative overflow-hidden rounded-[34px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(12,12,12,0.94),rgba(7,7,7,0.90))] p-8 shadow-[0_30px_90px_rgba(0,0,0,0.58)] backdrop-blur-xl sm:p-10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.08),transparent_28%)]" />
               <div className="absolute right-0 top-0 h-36 w-36 rounded-full bg-yellow-300/8 blur-3xl" />
               <div className="absolute bottom-0 left-0 h-28 w-28 rounded-full bg-yellow-500/8 blur-3xl" />
 
               <div className="relative">
                 <div className="mb-8 text-center">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-300 shadow-[0_0_30px_rgba(250,204,21,0.10)]">
-                    <ShieldCheck className="h-8 w-8" />
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[24px] border border-yellow-400/20 bg-yellow-400/10 shadow-[0_0_40px_rgba(250,204,21,0.10)]">
+                    <Image
+                      src="/moodlife-logo.png"
+                      alt="MoodLife"
+                      width={44}
+                      height={44}
+                      className="object-contain"
+                      priority
+                    />
                   </div>
 
                   <p className="mt-5 text-xs font-semibold uppercase tracking-[0.35em] text-yellow-300">
@@ -144,8 +197,8 @@ export default function LoginPage() {
                   </h2>
 
                   <p className="mt-3 text-sm leading-7 text-white/58">
-                    Accède à l’environnement staff avec ton adresse mail et ton
-                    mot de passe.
+                    Accède au panel privé avec ton adresse mail et ton mot de
+                    passe.
                   </p>
 
                   <div className="mx-auto mt-5 h-px w-40 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
@@ -204,9 +257,66 @@ export default function LoginPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </section>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes floatParticle {
+          0% {
+            transform: translateY(0px) scale(1);
+            opacity: 0.15;
+          }
+          25% {
+            opacity: 0.9;
+          }
+          50% {
+            transform: translateY(-18px) scale(1.15);
+            opacity: 0.45;
+          }
+          75% {
+            opacity: 0.8;
+          }
+          100% {
+            transform: translateY(0px) scale(1);
+            opacity: 0.2;
+          }
+        }
+
+        @keyframes glowMove {
+          0%,
+          100% {
+            transform: translateY(0px) scale(1);
+          }
+          50% {
+            transform: translateY(-12px) scale(1.04);
+          }
+        }
+
+        @keyframes glowMoveSlow {
+          0%,
+          100% {
+            transform: translateY(0px) scale(1);
+          }
+          50% {
+            transform: translateY(14px) scale(1.06);
+          }
+        }
+
+        .mood-particle {
+          animation-name: floatParticle;
+          animation-timing-function: ease-in-out;
+          animation-iteration-count: infinite;
+        }
+
+        .mood-orb {
+          animation: glowMove 9s ease-in-out infinite;
+        }
+
+        .mood-orb-slow {
+          animation: glowMoveSlow 12s ease-in-out infinite;
+        }
+      `}</style>
     </main>
   );
 }
