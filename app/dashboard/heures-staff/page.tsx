@@ -30,53 +30,76 @@ type HeuresRow = {
   isNew?: boolean;
 };
 
-const DAY_CONFIG = [
+type DayKey =
+  | "dimanche"
+  | "lundi"
+  | "mardi"
+  | "mercredi"
+  | "jeudi"
+  | "vendredi"
+  | "samedi";
+
+type ReportDayKey =
+  | "reports_dimanche"
+  | "reports_lundi"
+  | "reports_mardi"
+  | "reports_mercredi"
+  | "reports_jeudi"
+  | "reports_vendredi"
+  | "reports_samedi";
+
+const DAY_CONFIG: Array<{
+  key: DayKey;
+  reportKey: ReportDayKey;
+  label: string;
+  short: string;
+}> = [
   {
-    key: "dimanche" as keyof HeuresRow,
-    reportKey: "reports_dimanche" as keyof HeuresRow,
+    key: "dimanche",
+    reportKey: "reports_dimanche",
     label: "DIMANCHE",
     short: "DIM",
   },
   {
-    key: "lundi" as keyof HeuresRow,
-    reportKey: "reports_lundi" as keyof HeuresRow,
+    key: "lundi",
+    reportKey: "reports_lundi",
     label: "LUNDI",
     short: "LUN",
   },
   {
-    key: "mardi" as keyof HeuresRow,
-    reportKey: "reports_mardi" as keyof HeuresRow,
+    key: "mardi",
+    reportKey: "reports_mardi",
     label: "MARDI",
     short: "MAR",
   },
   {
-    key: "mercredi" as keyof HeuresRow,
-    reportKey: "reports_mercredi" as keyof HeuresRow,
+    key: "mercredi",
+    reportKey: "reports_mercredi",
     label: "MERCREDI",
     short: "MER",
   },
   {
-    key: "jeudi" as keyof HeuresRow,
-    reportKey: "reports_jeudi" as keyof HeuresRow,
+    key: "jeudi",
+    reportKey: "reports_jeudi",
     label: "JEUDI",
     short: "JEU",
   },
   {
-    key: "vendredi" as keyof HeuresRow,
-    reportKey: "reports_vendredi" as keyof HeuresRow,
+    key: "vendredi",
+    reportKey: "reports_vendredi",
     label: "VENDREDI",
     short: "VEN",
   },
   {
-    key: "samedi" as keyof HeuresRow,
-    reportKey: "reports_samedi" as keyof HeuresRow,
+    key: "samedi",
+    reportKey: "reports_samedi",
     label: "SAMEDI",
     short: "SAM",
   },
-] as const;
+];
 
-const HOUR_DAYS: Array<keyof HeuresRow> = DAY_CONFIG.map((day) => day.key);
-const REPORT_DAYS: Array<keyof HeuresRow> = DAY_CONFIG.map((day) => day.reportKey);
+const HOUR_DAYS: DayKey[] = DAY_CONFIG.map((day) => day.key);
+const REPORT_DAYS: ReportDayKey[] = DAY_CONFIG.map((day) => day.reportKey);
 
 const ROLE_ORDER = [
   "Helpeur",
@@ -1080,10 +1103,10 @@ function parseWeekLabel(label: string) {
   return candidates[0];
 }
 
-function buildWeekDateLabels(label: string) {
+function buildWeekDateLabels(label: string): Record<DayKey, string> {
   const parsed = parseWeekLabel(label);
 
-  const empty = {
+  const empty: Record<DayKey, string> = {
     dimanche: "",
     lundi: "",
     mardi: "",
@@ -1095,7 +1118,7 @@ function buildWeekDateLabels(label: string) {
 
   if (!parsed) return empty;
 
-  const datesByDay = { ...empty };
+  const datesByDay: Record<DayKey, string> = { ...empty };
   const current = new Date(parsed.start);
 
   for (let i = 0; i < 7; i += 1) {
