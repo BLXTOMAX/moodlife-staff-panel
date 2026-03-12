@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { supabase } from "@/lib/supabase";
 
 type StoredUser = {
@@ -44,9 +45,9 @@ export async function POST(request: Request) {
     const email = String(body?.email || "").trim().toLowerCase();
     const password = String(body?.password || "");
 
-    if (!email) {
+    if (!email || !password) {
       return NextResponse.json(
-        { success: false, message: "Email manquant." },
+        { success: false, message: "Email et mot de passe requis." },
         { status: 400 }
       );
     }
@@ -66,9 +67,11 @@ export async function POST(request: Request) {
     }
 
     if (!existingUser) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+
       const { error: insertError } = await supabase
         .from("users")
-        .insert([{ email, password }]);
+        .insert([{ email, password: hashedPassword }]);
 
       if (insertError) {
         console.error("POST /api/users insert error:", insertError);
