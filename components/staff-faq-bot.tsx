@@ -27,11 +27,12 @@ type Message = {
 const faqData: FaqItem[] = [
   // COMMANDES STAFF
   {
-    keywords: ["tp", "teleport", "téléport", "goto", "aller joueur"],
-    title: "Téléportation vers un joueur",
-    answer: "Pour vous téléporter vers un joueur, utilisez la commande /goto ID.",
-    command: "/goto ID",
-  },
+  keywords: ["tp", "teleport", "téléport", "goto", "aller joueur"],
+  title: "Téléportation vers un joueur",
+  answer: "Pour vous téléporter vers un joueur, utilisez la commande /goto ID.",
+  command: "/goto ID",
+  category: "Commandes Staff",
+},
   {
     keywords: ["bring", "ramener", "amener joueur", "tp joueur sur moi"],
     title: "Ramener un joueur",
@@ -210,9 +211,9 @@ function getBestAnswer(question: string) {
     .map((entry) => entry.item.command || entry.item.title);
 
   return {
-    text: `${best.item.answer}${best.item.command ? `\n\nCommande : ${best.item.command}` : ""}`,
-    suggestions: related,
-  };
+  text: `${best.item.category ? `Catégorie : ${best.item.category}\n\n` : ""}${best.item.answer}${best.item.command ? `\n\nCommande : ${best.item.command}` : ""}`,
+  suggestions: related,
+};
 }
 
 export default function StaffFaqBot() {
@@ -226,9 +227,16 @@ export default function StaffFaqBot() {
   ]);
 
   const quickSuggestions = useMemo(
-    () => ["/goto ID", "/bring ID", "/revive ID", "/ban ID Temps Raison"],
-    []
-  );
+  () => [
+    "comment tp un joueur",
+    "comment bannir un joueur",
+    "à quoi sert absence staff",
+    "c'est quoi mail accès",
+    "où voir les règles staff",
+    "à quoi sert deban non autorisé",
+  ],
+  []
+);
 
   function sendQuestion(customText?: string) {
     const text = (customText ?? input).trim();
