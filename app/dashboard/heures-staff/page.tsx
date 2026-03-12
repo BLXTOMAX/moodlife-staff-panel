@@ -76,10 +76,7 @@ const DAY_CONFIG = [
 ] as const;
 
 const HOUR_DAYS: Array<keyof HeuresRow> = DAY_CONFIG.map((day) => day.key);
-
-const REPORT_DAYS: Array<keyof HeuresRow> = DAY_CONFIG.map(
-  (day) => day.reportKey
-);
+const REPORT_DAYS: Array<keyof HeuresRow> = DAY_CONFIG.map((day) => day.reportKey);
 
 const ROLE_ORDER = [
   "Helpeur",
@@ -93,7 +90,6 @@ export default function HeuresStaffPage() {
   const [rows, setRows] = useState<HeuresRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingAll, setSavingAll] = useState(false);
-  const [deletedIds, setDeletedIds] = useState<number[]>([]);
   const [selectedWeek, setSelectedWeek] = useState("");
   const [createdWeeks, setCreatedWeeks] = useState<string[]>([]);
   const [showRanking, setShowRanking] = useState(false);
@@ -104,19 +100,36 @@ export default function HeuresStaffPage() {
 
   useEffect(() => {
     loadRows();
+
+    const channel = supabase
+      .channel("heures_staff_realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "heures_staff" },
+        () => {
+          loadRows(false);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  async function loadRows() {
-    setLoading(true);
+  async function loadRows(showLoader = true) {
+    if (showLoader) setLoading(true);
 
     const { data, error } = await supabase
       .from("heures_staff")
       .select("*")
+      .order("role", { ascending: true })
+      .order("staff", { ascending: true })
       .order("id", { ascending: true });
 
     if (error) {
       console.error("Erreur chargement heures_staff :", error);
-      setLoading(false);
+      if (showLoader) setLoading(false);
       return;
     }
 
@@ -126,7 +139,6 @@ export default function HeuresStaffPage() {
     }));
 
     setRows(cleanedRows);
-    setDeletedIds([]);
 
     const weekValues = Array.from(
       new Set(cleanedRows.map((row) => (row.semaine || "").trim()).filter(Boolean))
@@ -136,7 +148,7 @@ export default function HeuresStaffPage() {
       setSelectedWeek(weekValues[0] || getDefaultWeekLabel());
     }
 
-    setLoading(false);
+    if (showLoader) setLoading(false);
   }
 
   function getAllWeeks() {
@@ -144,10 +156,10 @@ export default function HeuresStaffPage() {
     return Array.from(new Set([...createdWeeks, ...dbWeeks]));
   }
 
-  function buildEmptyRow(role = "Modérateur"): HeuresRow {
+  function buildEmptyRow(role = "Modérateur", week?: string): HeuresRow {
     return {
       id: -Date.now() - Math.floor(Math.random() * 1000),
-      semaine: selectedWeek || getDefaultWeekLabel(),
+      semaine: week || selectedWeek || getDefaultWeekLabel(),
       staff: "",
       role,
       lundi: "",
@@ -172,16 +184,80 @@ export default function HeuresStaffPage() {
     };
   }
 
-  function addRow(role = "Modérateur") {
-    const newRow = buildEmptyRow(role);
-    setRows((prev) => [...prev, newRow]);
-    setOpenRole(role);
+  function rowToPayload(row: HeuresRow, weekOverride?: string) {
+    const totalMinutes = computeTotalMinutes(row);
+    const totalFormatted = formatMinutes(totalMinutes);
+    const totalReports = computeTotalReports(row);
+    const paye = computePaye(row.role, row.staff, totalMinutes);
+
+    return {
+      semaine: weekOverride || row.semaine || selectedWeek || getDefaultWeekLabel(),
+      staff: row.staff || "",
+      role: row.role || "Modérateur",
+      lundi: row.lundi || "",
+      mardi: row.mardi || "",
+      mercredi: row.mercredi || "",
+      jeudi: row.jeudi || "",
+      vendredi: row.vendredi || "",
+      samedi: row.samedi || "",
+      dimanche: row.dimanche || "",
+      reports_lundi: row.reports_lundi || "",
+      reports_mardi: row.reports_mardi || "",
+      reports_mercredi: row.reports_mercredi || "",
+      reports_jeudi: row.reports_jeudi || "",
+      reports_vendredi: row.reports_vendredi || "",
+      reports_samedi: row.reports_samedi || "",
+      reports_dimanche: row.reports_dimanche || "",
+      total_reports: totalReports,
+      total_heures: totalFormatted,
+      paye,
+      auteur: row.auteur || "",
+    };
   }
 
-  function createWeek() {
+  async function addRow(role = "Modérateur") {
+    const temp = buildEmptyRow(role, activeWeek);
+    const payload = rowToPayload(temp, activeWeek);
+
+    const { error } = await supabase.from("heures_staff").insert(payload);
+
+    if (error) {
+      console.error("Erreur ajout ligne :", error);
+      return;
+    }
+
+    setOpenRole(role);
+    await loadRows(false);
+  }
+
+  function getLatestStaffTemplates() {
+    const source = [...rows]
+      .filter((row) => (row.staff || "").trim())
+      .sort((a, b) => b.id - a.id);
+
+    const seen = new Set<string>();
+    const templates: HeuresRow[] = [];
+
+    for (const row of source) {
+      const key = `${normalizeRole(row.role)}__${row.staff.trim().toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      templates.push(row);
+    }
+
+    return templates.sort((a, b) => {
+      const roleA = ROLE_ORDER.indexOf(normalizeRole(a.role) as (typeof ROLE_ORDER)[number]);
+      const roleB = ROLE_ORDER.indexOf(normalizeRole(b.role) as (typeof ROLE_ORDER)[number]);
+      if (roleA !== roleB) return roleA - roleB;
+      return (a.staff || "").localeCompare(b.staff || "", "fr");
+    });
+  }
+
+  async function createWeek() {
+    const suggested = getNextWeekLabelFromActive(activeWeek);
     const value = window.prompt(
-      "Nom de la nouvelle semaine ?\nExemple : 18/03 au 24/03",
-      ""
+      "Nom de la nouvelle semaine ?\nExemple : 08/03 au 14/03",
+      suggested
     );
 
     if (!value) return;
@@ -194,25 +270,72 @@ export default function HeuresStaffPage() {
       setCreatedWeeks((prev) => [...prev, trimmed]);
     }
 
+    const existingRowsForWeek = rows.filter(
+      (row) => (row.semaine || "").trim() === trimmed
+    );
+
+    if (existingRowsForWeek.length === 0) {
+      const templates = getLatestStaffTemplates();
+
+      if (templates.length > 0) {
+        const inserts = templates.map((template) =>
+          rowToPayload(
+            {
+              ...buildEmptyRow(template.role, trimmed),
+              staff: template.staff || "",
+              role: normalizeRole(template.role),
+            },
+            trimmed
+          )
+        );
+
+        const { error } = await supabase.from("heures_staff").insert(inserts);
+
+        if (error) {
+          console.error("Erreur création semaine :", error);
+        }
+      }
+    }
+
     setSelectedWeek(trimmed);
+    await loadRows(false);
   }
 
-  function deleteRow(id: number) {
+  async function clearCurrentWeek() {
+    const ok = window.confirm(
+      `Tu veux vraiment effacer la semaine "${activeWeek}" ?`
+    );
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("heures_staff")
+      .delete()
+      .eq("semaine", activeWeek);
+
+    if (error) {
+      console.error("Erreur suppression semaine :", error);
+      return;
+    }
+
+    await loadRows(false);
+  }
+
+  async function deleteRow(id: number) {
     const row = rows.find((r) => r.id === id);
     if (!row) return;
 
-    if (!row.isNew && id > 0) {
-      setDeletedIds((prev) => [...prev, id]);
+    if (row.id > 0) {
+      const { error } = await supabase.from("heures_staff").delete().eq("id", id);
+      if (error) {
+        console.error(`Erreur suppression ligne ${id} :`, error);
+        return;
+      }
     }
 
     setRows((prev) => prev.filter((r) => r.id !== id));
   }
 
-  function updateRow(
-    id: number,
-    field: keyof HeuresRow,
-    value: string | number
-  ) {
+  function updateRow(id: number, field: keyof HeuresRow, value: string | number) {
     setRows((prev) =>
       prev.map((row) => {
         if (row.id !== id) return row;
@@ -240,44 +363,10 @@ export default function HeuresStaffPage() {
   async function saveAllRows() {
     setSavingAll(true);
 
-    for (const id of deletedIds) {
-      const { error } = await supabase.from("heures_staff").delete().eq("id", id);
-      if (error) {
-        console.error(`Erreur suppression ligne ${id} :`, error);
-      }
-    }
-
     for (const row of rows) {
-      const totalMinutes = computeTotalMinutes(row);
-      const totalFormatted = formatMinutes(totalMinutes);
-      const totalReports = computeTotalReports(row);
-      const paye = computePaye(row.role, row.staff, totalMinutes);
+      const payload = rowToPayload(row);
 
-      const payload = {
-        semaine: row.semaine || selectedWeek || getDefaultWeekLabel(),
-        staff: row.staff,
-        role: row.role,
-        lundi: row.lundi,
-        mardi: row.mardi,
-        mercredi: row.mercredi,
-        jeudi: row.jeudi,
-        vendredi: row.vendredi,
-        samedi: row.samedi,
-        dimanche: row.dimanche,
-        reports_lundi: row.reports_lundi,
-        reports_mardi: row.reports_mardi,
-        reports_mercredi: row.reports_mercredi,
-        reports_jeudi: row.reports_jeudi,
-        reports_vendredi: row.reports_vendredi,
-        reports_samedi: row.reports_samedi,
-        reports_dimanche: row.reports_dimanche,
-        total_reports: totalReports,
-        total_heures: totalFormatted,
-        paye,
-        auteur: row.auteur,
-      };
-
-      if (row.isNew) {
+      if (row.isNew || row.id <= 0) {
         const { error } = await supabase.from("heures_staff").insert(payload);
         if (error) {
           console.error("Erreur insert nouvelle ligne :", error);
@@ -295,7 +384,7 @@ export default function HeuresStaffPage() {
     }
 
     setSavingAll(false);
-    await loadRows();
+    await loadRows(false);
   }
 
   const weeks = useMemo(() => {
@@ -304,7 +393,8 @@ export default function HeuresStaffPage() {
         ...createdWeeks,
         ...rows.map((row) => (row.semaine || "").trim()).filter(Boolean),
       ])
-    );
+    ).sort(compareWeekLabels);
+
     return all.length > 0 ? all : [getDefaultWeekLabel()];
   }, [rows, createdWeeks]);
 
@@ -336,6 +426,15 @@ export default function HeuresStaffPage() {
       const role = normalizeRole(row.role);
       if (!map.has(role)) map.set(role, []);
       map.get(role)!.push(row);
+    }
+
+    for (const [role, list] of map.entries()) {
+      map.set(
+        role,
+        [...list].sort((a, b) =>
+          (a.staff || "").localeCompare(b.staff || "", "fr")
+        )
+      );
     }
 
     return map;
@@ -422,6 +521,13 @@ export default function HeuresStaffPage() {
               className="rounded-2xl bg-green-500 px-5 py-3 font-bold text-black transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {savingAll ? "Sauvegarde..." : "💾 Sauvegarder tout"}
+            </button>
+
+            <button
+              onClick={clearCurrentWeek}
+              className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-3 font-bold text-red-300 transition hover:bg-red-500/20"
+            >
+              Effacer la semaine
             </button>
           </div>
         </div>
@@ -702,9 +808,7 @@ export default function HeuresStaffPage() {
                               return (
                                 <div
                                   key={row.id}
-                                  className={`grid grid-cols-[320px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4 ${
-                                    row.isNew ? "bg-yellow-500/5" : ""
-                                  }`}
+                                  className="grid grid-cols-[320px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4"
                                 >
                                   <div className="space-y-2">
                                     <input
@@ -843,7 +947,10 @@ export default function HeuresStaffPage() {
 }
 
 function getDefaultWeekLabel() {
-  return "01/01 au 07/01";
+  const today = new Date();
+  const sunday = startOfWeekSunday(today);
+  const saturday = addDays(sunday, 6);
+  return `${formatDateShort(sunday)} au ${formatDateShort(saturday)}`;
 }
 
 function normalizeRole(role: string) {
@@ -940,48 +1047,101 @@ function parseWeekLabel(label: string) {
   const startMonth = Number(match[2]);
   const endDay = Number(match[3]);
   const endMonth = Number(match[4]);
-  const nowYear = new Date().getFullYear();
 
-  let startYear = nowYear;
-  let endYear = nowYear;
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const candidates: Array<{ start: Date; end: Date }> = [];
 
-  if (endMonth < startMonth) {
-    endYear = nowYear + 1;
+  for (let year = currentYear - 1; year <= currentYear + 2; year += 1) {
+    let startYear = year;
+    let endYear = year;
+
+    if (endMonth < startMonth) {
+      endYear = year + 1;
+    }
+
+    const start = new Date(startYear, startMonth - 1, startDay);
+    const end = new Date(endYear, endMonth - 1, endDay);
+
+    const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000);
+    if (diffDays === 6) {
+      candidates.push({ start, end });
+    }
   }
 
-  return {
-    start: new Date(startYear, startMonth - 1, startDay),
-    end: new Date(endYear, endMonth - 1, endDay),
-  };
+  if (candidates.length === 0) return null;
+
+  candidates.sort((a, b) => {
+    const diffA = Math.abs(a.start.getTime() - now.getTime());
+    const diffB = Math.abs(b.start.getTime() - now.getTime());
+    return diffA - diffB;
+  });
+
+  return candidates[0];
 }
 
 function buildWeekDateLabels(label: string) {
   const parsed = parseWeekLabel(label);
-  if (!parsed) {
-    return {
-      dimanche: "",
-      lundi: "",
-      mardi: "",
-      mercredi: "",
-      jeudi: "",
-      vendredi: "",
-      samedi: "",
-    };
-  }
 
-  const monday = new Date(parsed.start);
-
-  const datesByDay: Record<string, string> = {
-    lundi: formatDateShort(addDays(monday, 0)),
-    mardi: formatDateShort(addDays(monday, 1)),
-    mercredi: formatDateShort(addDays(monday, 2)),
-    jeudi: formatDateShort(addDays(monday, 3)),
-    vendredi: formatDateShort(addDays(monday, 4)),
-    samedi: formatDateShort(addDays(monday, 5)),
-    dimanche: formatDateShort(addDays(monday, 6)),
+  const empty = {
+    dimanche: "",
+    lundi: "",
+    mardi: "",
+    mercredi: "",
+    jeudi: "",
+    vendredi: "",
+    samedi: "",
   };
 
+  if (!parsed) return empty;
+
+  const datesByDay = { ...empty };
+  const current = new Date(parsed.start);
+
+  for (let i = 0; i < 7; i += 1) {
+    const dayIndex = current.getDay();
+    const formatted = formatDateShort(current);
+
+    if (dayIndex === 0) datesByDay.dimanche = formatted;
+    if (dayIndex === 1) datesByDay.lundi = formatted;
+    if (dayIndex === 2) datesByDay.mardi = formatted;
+    if (dayIndex === 3) datesByDay.mercredi = formatted;
+    if (dayIndex === 4) datesByDay.jeudi = formatted;
+    if (dayIndex === 5) datesByDay.vendredi = formatted;
+    if (dayIndex === 6) datesByDay.samedi = formatted;
+
+    current.setDate(current.getDate() + 1);
+  }
+
   return datesByDay;
+}
+
+function getNextWeekLabelFromActive(activeWeek: string) {
+  const parsed = parseWeekLabel(activeWeek);
+  if (!parsed) return getDefaultWeekLabel();
+
+  const nextStart = addDays(parsed.start, 7);
+  const nextEnd = addDays(parsed.end, 7);
+
+  return `${formatDateShort(nextStart)} au ${formatDateShort(nextEnd)}`;
+}
+
+function compareWeekLabels(a: string, b: string) {
+  const parsedA = parseWeekLabel(a);
+  const parsedB = parseWeekLabel(b);
+
+  if (!parsedA && !parsedB) return a.localeCompare(b, "fr");
+  if (!parsedA) return 1;
+  if (!parsedB) return -1;
+
+  return parsedA.start.getTime() - parsedB.start.getTime();
+}
+
+function startOfWeekSunday(date: Date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  copy.setDate(copy.getDate() - copy.getDay());
+  return copy;
 }
 
 function addDays(date: Date, days: number) {
