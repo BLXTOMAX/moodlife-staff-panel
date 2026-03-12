@@ -277,26 +277,6 @@ export default function HeuresStaffPage() {
     await loadRows();
   }
 
-  function clearCurrentWeek() {
-    const ok = window.confirm(
-      `Tu veux vraiment vider la semaine "${selectedWeek}" ?`
-    );
-    if (!ok) return;
-
-    const visibleRows = rows.filter(
-      (row) => (row.semaine || "").trim() === selectedWeek
-    );
-
-    const idsToDelete = visibleRows
-      .filter((row) => !row.isNew && row.id > 0)
-      .map((row) => row.id);
-
-    setDeletedIds((prev) => [...prev, ...idsToDelete]);
-    setRows((prev) =>
-      prev.filter((row) => (row.semaine || "").trim() !== selectedWeek)
-    );
-  }
-
   const weeks = useMemo(() => {
     const all = Array.from(
       new Set([
@@ -421,13 +401,6 @@ export default function HeuresStaffPage() {
               className="rounded-2xl bg-green-500 px-5 py-3 font-bold text-black transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {savingAll ? "Sauvegarde..." : "💾 Sauvegarder tout"}
-            </button>
-
-            <button
-              onClick={clearCurrentWeek}
-              className="rounded-2xl border border-red-700 bg-red-950/60 px-5 py-3 font-bold text-red-300 transition hover:bg-red-900/60"
-            >
-              Vider la semaine
             </button>
           </div>
         </div>
@@ -741,21 +714,25 @@ export default function HeuresStaffPage() {
                                 />
 
                                 {HOUR_DAYS.map((day) => {
+                                  const dayValue = String(row[day] || "");
+                                  const lowerValue = dayValue.trim().toLowerCase();
                                   const isImprevu =
-                                    String(row[day] || "").trim().toLowerCase() ===
-                                    "imprévu";
+                                    lowerValue === "imprévu" || lowerValue === "imprevu";
+                                  const isZeroHour = isZeroHourValue(dayValue);
 
                                   return (
                                     <input
                                       key={String(day)}
-                                      value={String(row[day] || "")}
+                                      value={dayValue}
                                       onChange={(e) =>
                                         updateRow(row.id, day, e.target.value)
                                       }
                                       placeholder="2h30"
                                       className={
                                         isImprevu
-                                          ? `${inputClass} border-amber-400/40 bg-amber-500/10 font-bold text-amber-200 shadow-[0_0_0_1px_rgba(251,191,36,0.08)]`
+                                          ? `${inputClass} border-blue-400/40 bg-blue-500/10 font-bold text-blue-200 shadow-[0_0_0_1px_rgba(96,165,250,0.08)]`
+                                          : isZeroHour
+                                          ? `${inputClass} border-red-400/40 bg-red-500/10 font-bold text-red-200 shadow-[0_0_0_1px_rgba(248,113,113,0.08)]`
                                           : `${inputClass} border-green-500/30 bg-green-950/10`
                                       }
                                     />
@@ -956,6 +933,11 @@ function buildWeekDateLabels(label: string) {
   }
 
   return dates;
+}
+
+function isZeroHourValue(value: string) {
+  const raw = (value || "").trim().toLowerCase().replace(/\s+/g, "");
+  return raw === "00h00" || raw === "0h00" || raw === "00:00" || raw === "0:00";
 }
 
 function StatCard({
