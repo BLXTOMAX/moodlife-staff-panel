@@ -10,17 +10,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const particles = useMemo(
-    () =>
-      Array.from({ length: 18 }, (_, i) => ({
-        id: i,
-        left: `${5 + ((i * 17) % 90)}%`,
-        top: `${8 + ((i * 29) % 80)}%`,
-        size: 2 + (i % 4),
-        duration: 7 + (i % 6),
-        delay: (i % 5) * 0.8,
-      })),
-    []
-  );
+  () =>
+    Array.from({ length: 42 }, (_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      size: 2 + Math.random() * 4,
+      duration: 6 + Math.random() * 8,
+      delay: Math.random() * 5,
+      opacity: 0.25 + Math.random() * 0.75,
+    })),
+  []
+);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -81,13 +82,14 @@ export default function LoginPage() {
             key={particle.id}
             className="mood-particle absolute rounded-full bg-yellow-300/70 shadow-[0_0_16px_rgba(250,204,21,0.35)]"
             style={{
-              left: particle.left,
-              top: particle.top,
-              width: `${particle.size}px`,
-              height: `${particle.size}px`,
-              animationDuration: `${particle.duration}s`,
-              animationDelay: `${particle.delay}s`,
-            }}
+  left: particle.left,
+  top: particle.top,
+  width: `${particle.size}px`,
+  height: `${particle.size}px`,
+  animationDuration: `${particle.duration}s`,
+  animationDelay: `${particle.delay}s`,
+  opacity: particle.opacity,
+}}
           />
         ))}
       </div>
@@ -104,7 +106,7 @@ export default function LoginPage() {
               <div className="mt-7 flex items-center gap-4">
                 <div className="relative flex h-20 w-20 items-center justify-center rounded-[26px] border border-yellow-400/20 bg-yellow-400/10 shadow-[0_0_40px_rgba(250,204,21,0.08)]">
                   <Image
-                    src="/moodlife-logo.png"
+                    src="/logo-moodlife.png"
                     alt="MoodLife"
                     width={46}
                     height={46}
@@ -179,7 +181,7 @@ export default function LoginPage() {
                 <div className="mb-8 text-center">
                   <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[24px] border border-yellow-400/20 bg-yellow-400/10 shadow-[0_0_40px_rgba(250,204,21,0.10)]">
                     <Image
-                      src="/moodlife-logo.png"
+                      src="/logo-moodlife.png"
                       alt="MoodLife"
                       width={44}
                       height={44}
