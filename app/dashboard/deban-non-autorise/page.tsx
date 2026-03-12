@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -304,6 +306,19 @@ function StatCard({
   );
 }
 
+function HiddenImageLink() {
+  return (
+    <Link
+      href="/enpanne"
+      aria-label="Ouvrir l'image cachée"
+      className="ml-2 inline-block h-4 w-4 align-middle opacity-0"
+      title="..."
+    >
+      .
+    </Link>
+  );
+}
+
 function ReasonAccordion({
   category,
   reasons,
@@ -329,43 +344,56 @@ function ReasonAccordion({
       >
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
-            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${tone.badge}`}>
+            <span
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${tone.badge}`}
+            >
               <span className={`h-2 w-2 rounded-full ${tone.dot}`} />
               {category.title}
             </span>
-            <span className="text-sm font-semibold text-white/80">{reasons.length} motif{reasons.length > 1 ? "s" : ""}</span>
+            <span className="text-sm font-semibold text-white/80">
+              {reasons.length} motif{reasons.length > 1 ? "s" : ""}
+            </span>
           </div>
           <p className="mt-3 text-sm leading-6 text-white/60">{category.description}</p>
         </div>
 
         <ChevronDown
           className={`h-5 w-5 shrink-0 text-white/55 transition-transform duration-300 ${
-  open ? "rotate-180" : ""
-}`}
+            open ? "rotate-180" : ""
+          }`}
         />
       </button>
 
       <div
-  className={`border-t border-white/10 px-5 transition-all duration-300 ease-in-out overflow-hidden ${
-    open ? "max-h-[800px] py-4 opacity-100" : "max-h-0 py-0 opacity-0"
-  }`}
->
-          <div className="grid gap-3 md:grid-cols-2">
-            {reasons.map((reason, index) => (
-              <div
-                key={`${category.id}-${reason}-${index}`}
-                className="rounded-2xl border border-yellow-400/10 bg-[#141414] p-4"
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${tone.icon}`}>
-                    {index + 1}
-                  </div>
-                  <p className="text-sm leading-7 text-white/88">{highlight(reason, search)}</p>
+        className={`overflow-hidden border-t border-white/10 px-5 transition-all duration-300 ease-in-out ${
+          open ? "max-h-[3000px] py-4 opacity-100" : "max-h-0 py-0 opacity-0"
+        }`}
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          {reasons.map((reason, index) => (
+            <div
+              key={`${category.id}-${reason}-${index}`}
+              className="rounded-2xl border border-yellow-400/10 bg-[#141414] p-4"
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${tone.icon}`}
+                >
+                  {index + 1}
                 </div>
+
+                {reason === "Clear Ped Tasks Event" ? (
+  <Link href="/enpanne" className="text-sm leading-7 text-white/88">
+    {highlight(reason, search)}
+  </Link>
+) : (
+  <p className="text-sm leading-7 text-white/88">{highlight(reason, search)}</p>
+)}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
+      </div>
     </div>
   );
 }
@@ -410,8 +438,9 @@ export default function DebanNonAutorisePage() {
             </h1>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-white/78 md:text-[15px]">
-              Cette page regroupe les règles de traitement pour les demandes de déban liées à un ban AntiCheat.
-              Lorsqu’un motif correspond à un flag listé ci-dessous, une vérification PC est obligatoire avant toute décision.
+              Cette page regroupe les règles de traitement pour les demandes de déban liées à un
+              ban AntiCheat. Lorsqu’un motif correspond à un flag listé ci-dessous, une
+              vérification PC est obligatoire avant toute décision.
             </p>
           </div>
 
@@ -421,7 +450,9 @@ export default function DebanNonAutorisePage() {
               <p className="mt-2 text-sm font-semibold text-white">AntiCheat uniquement</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-              <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/75">Grade minimum</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/75">
+                Grade minimum
+              </p>
               <p className="mt-2 text-sm font-semibold text-white">Administrateur</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
@@ -440,9 +471,11 @@ export default function DebanNonAutorisePage() {
           <div>
             <h2 className="text-lg font-bold text-white">Accès restreint</h2>
             <p className="mt-2 text-sm leading-6 text-white/78">
-              Les vérifications PC et les débans AC sont <span className="font-semibold text-red-300">strictement réservés</span>
-              {" "}à l’équipe AntiCheat avec un grade minimum <span className="font-semibold text-yellow-300">Administrateur</span>.
-              Aucun autre staff ne doit traiter ce type de dossier seul.
+              Les vérifications PC et les débans AC sont{" "}
+              <span className="font-semibold text-red-300">strictement réservés</span> à l’équipe
+              AntiCheat avec un grade minimum{" "}
+              <span className="font-semibold text-yellow-300">Administrateur</span>. Aucun autre
+              staff ne doit traiter ce type de dossier seul.
             </p>
           </div>
         </div>
@@ -463,7 +496,11 @@ export default function DebanNonAutorisePage() {
         <StatCard
           label="Résultats affichés"
           value={search.trim() ? filteredCount : totalReasons}
-          description={search.trim() ? "Motifs correspondant à la recherche." : "Nombre total actuellement visibles."}
+          description={
+            search.trim()
+              ? "Motifs correspondant à la recherche."
+              : "Nombre total actuellement visibles."
+          }
           valueClassName="text-emerald-300"
         />
         <StatCard
@@ -509,14 +546,14 @@ export default function DebanNonAutorisePage() {
 
             <div className="mt-5 space-y-4">
               {filteredCategories.map((category) => (
-  <ReasonAccordion
-    key={category.id}
-    category={category}
-    reasons={category.reasons}
-    search={search}
-    defaultOpen={false}
-  />
-))}
+                <ReasonAccordion
+                  key={category.id}
+                  category={category}
+                  reasons={category.reasons}
+                  search={search}
+                  defaultOpen={false}
+                />
+              ))}
 
               {filteredCategories.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/60">
@@ -540,14 +577,18 @@ export default function DebanNonAutorisePage() {
             </div>
 
             <p className="mt-4 text-sm leading-7 text-white/75">
-              Document de référence pour conduire une vérification PC complète, suivre la procédure correctement et justifier la décision finale.
+              Document de référence pour conduire une vérification PC complète, suivre la procédure
+              correctement et justifier la décision finale.
             </p>
 
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-yellow-300/80">Dernière modification</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-yellow-300/80">
+                Dernière modification
+              </p>
               <p className="mt-2 text-sm text-white/85">Vendredi 16 août 2024 à 00:33</p>
               <p className="mt-2 text-sm leading-6 text-white/60">
-                Ajout de 31 bans, total de 67 bans, remise en page des bans et mise à jour du document de vérification PC.
+                Ajout de 31 bans, total de 67 bans, remise en page des bans et mise à jour du
+                document de vérification PC.
               </p>
             </div>
 
@@ -594,8 +635,9 @@ export default function DebanNonAutorisePage() {
               <div>
                 <h3 className="text-base font-semibold text-white">Rappel critique</h3>
                 <p className="mt-2 text-sm leading-6 text-white/78">
-                  Si le motif de ban apparaît dans cette liste, le dossier ne doit pas être traité comme un simple déban classique.
-                  Une vérification PC est obligatoire avant validation.
+                  Si le motif de ban apparaît dans cette liste, le dossier ne doit pas être traité
+                  comme un simple déban classique. Une vérification PC est obligatoire avant
+                  validation.
                 </p>
               </div>
             </div>
