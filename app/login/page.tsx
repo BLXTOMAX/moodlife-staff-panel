@@ -11,7 +11,7 @@ export default function LoginPage() {
 
   const particles = useMemo(
   () =>
-    Array.from({ length: 42 }, (_, i) => ({
+    Array.from({ length: 70 }, (_, i) => ({
       id: i,
       left: `${Math.random() * 100}%`,
       top: `${Math.random() * 100}%`,
@@ -77,22 +77,22 @@ export default function LoginPage() {
       <div className="mood-orb absolute right-[-80px] top-[20%] h-[300px] w-[300px] rounded-full bg-yellow-500/10 blur-[130px]" />
 
       <div className="pointer-events-none absolute inset-0">
-        {particles.map((particle) => (
-          <span
-            key={particle.id}
-            className="mood-particle absolute rounded-full bg-yellow-300/70 shadow-[0_0_16px_rgba(250,204,21,0.35)]"
-            style={{
-  left: particle.left,
-  top: particle.top,
-  width: `${particle.size}px`,
-  height: `${particle.size}px`,
-  animationDuration: `${particle.duration}s`,
-  animationDelay: `${particle.delay}s`,
-  opacity: particle.opacity,
-}}
-          />
-        ))}
-      </div>
+  {particles.map((particle) => (
+    <span
+      key={particle.id}
+      className="mood-particle absolute rounded-full bg-yellow-200 shadow-[0_0_20px_rgba(250,204,21,0.5)]"
+      style={{
+        left: particle.left,
+        top: particle.top,
+        width: `${particle.size}px`,
+        height: `${particle.size}px`,
+        animationDuration: `${particle.duration}s`,
+        animationDelay: `${particle.delay}s`,
+        opacity: particle.opacity,
+      }}
+    />
+  ))}
+</div>
 
       <div className="relative w-full max-w-[1180px]">
         <div className="grid items-center gap-10 lg:grid-cols-[1.08fr_0.92fr]">
