@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Copy, Check } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type HeuresRow = {
@@ -9,6 +9,7 @@ type HeuresRow = {
   semaine: string;
   staff: string;
   role: string;
+  license: string;
   lundi: string;
   mardi: string;
   mercredi: string;
@@ -120,6 +121,9 @@ export default function HeuresStaffPage() {
   const [focusedStaffByRole, setFocusedStaffByRole] = useState<
     Record<string, string | null>
   >({});
+  const [copiedLicenseByRow, setCopiedLicenseByRow] = useState<
+    Record<number, boolean>
+  >({});
 
   useEffect(() => {
     loadRows();
@@ -156,15 +160,39 @@ export default function HeuresStaffPage() {
       return;
     }
 
-    const cleanedRows = ((data || []) as HeuresRow[]).map((row) => ({
-      ...row,
+    const cleanedRows = ((data || []) as Partial<HeuresRow>[]).map((row) => ({
+      id: Number(row.id ?? 0),
+      semaine: row.semaine || "",
+      staff: row.staff || "",
+      role: row.role || "Modérateur",
+      license: row.license || "",
+      lundi: row.lundi || "",
+      mardi: row.mardi || "",
+      mercredi: row.mercredi || "",
+      jeudi: row.jeudi || "",
+      vendredi: row.vendredi || "",
+      samedi: row.samedi || "",
+      dimanche: row.dimanche || "",
+      reports_lundi: row.reports_lundi || "",
+      reports_mardi: row.reports_mardi || "",
+      reports_mercredi: row.reports_mercredi || "",
+      reports_jeudi: row.reports_jeudi || "",
+      reports_vendredi: row.reports_vendredi || "",
+      reports_samedi: row.reports_samedi || "",
+      reports_dimanche: row.reports_dimanche || "",
+      total_reports: Number(row.total_reports ?? 0),
+      total_heures: row.total_heures || "0h00",
+      paye: Number(row.paye ?? 0),
+      auteur: row.auteur || "",
       isNew: false,
     }));
 
     setRows(cleanedRows);
 
     const weekValues = Array.from(
-      new Set(cleanedRows.map((row) => (row.semaine || "").trim()).filter(Boolean))
+      new Set(
+        cleanedRows.map((row) => (row.semaine || "").trim()).filter(Boolean)
+      )
     );
 
     if (!selectedWeek) {
@@ -185,6 +213,7 @@ export default function HeuresStaffPage() {
       semaine: week || selectedWeek || getDefaultWeekLabel(),
       staff: "",
       role,
+      license: "",
       lundi: "",
       mardi: "",
       mercredi: "",
@@ -214,9 +243,11 @@ export default function HeuresStaffPage() {
     const paye = computePaye(row.role, row.staff, totalMinutes);
 
     return {
-      semaine: weekOverride || row.semaine || selectedWeek || getDefaultWeekLabel(),
+      semaine:
+        weekOverride || row.semaine || selectedWeek || getDefaultWeekLabel(),
       staff: row.staff || "",
       role: row.role || "Modérateur",
+      license: row.license || "",
       lundi: row.lundi || "",
       mardi: row.mardi || "",
       mercredi: row.mercredi || "",
@@ -262,15 +293,21 @@ export default function HeuresStaffPage() {
     const templates: HeuresRow[] = [];
 
     for (const row of source) {
-      const key = `${normalizeRole(row.role)}__${row.staff.trim().toLowerCase()}`;
+      const key = `${normalizeRole(row.role)}__${row.staff
+        .trim()
+        .toLowerCase()}`;
       if (seen.has(key)) continue;
       seen.add(key);
       templates.push(row);
     }
 
     return templates.sort((a, b) => {
-      const roleA = ROLE_ORDER.indexOf(normalizeRole(a.role) as (typeof ROLE_ORDER)[number]);
-      const roleB = ROLE_ORDER.indexOf(normalizeRole(b.role) as (typeof ROLE_ORDER)[number]);
+      const roleA = ROLE_ORDER.indexOf(
+        normalizeRole(a.role) as (typeof ROLE_ORDER)[number]
+      );
+      const roleB = ROLE_ORDER.indexOf(
+        normalizeRole(b.role) as (typeof ROLE_ORDER)[number]
+      );
       if (roleA !== roleB) return roleA - roleB;
       return (a.staff || "").localeCompare(b.staff || "", "fr");
     });
@@ -307,6 +344,7 @@ export default function HeuresStaffPage() {
               ...buildEmptyRow(template.role, trimmed),
               staff: template.staff || "",
               role: normalizeRole(template.role),
+              license: template.license || "",
             },
             trimmed
           )
@@ -348,7 +386,10 @@ export default function HeuresStaffPage() {
     if (!row) return;
 
     if (row.id > 0) {
-      const { error } = await supabase.from("heures_staff").delete().eq("id", id);
+      const { error } = await supabase
+        .from("heures_staff")
+        .delete()
+        .eq("id", id);
       if (error) {
         console.error(`Erreur suppression ligne ${id} :`, error);
         return;
@@ -408,6 +449,20 @@ export default function HeuresStaffPage() {
 
     setSavingAll(false);
     await loadRows(false);
+  }
+
+  async function copyLicense(rowId: number, value: string) {
+    if (!value?.trim()) return;
+
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedLicenseByRow((prev) => ({ ...prev, [rowId]: true }));
+      window.setTimeout(() => {
+        setCopiedLicenseByRow((prev) => ({ ...prev, [rowId]: false }));
+      }, 1500);
+    } catch (error) {
+      console.error("Erreur copie licence :", error);
+    }
   }
 
   const weeks = useMemo(() => {
@@ -506,8 +561,8 @@ export default function HeuresStaffPage() {
               Tableau des heures et reports
             </h1>
             <p className="mt-3 max-w-4xl text-sm leading-7 text-white/72">
-              Gère les heures, les reports, les semaines, le classement et la paye
-              automatique.
+              Gère les heures, les reports, les semaines, le classement et la
+              paye automatique.
             </p>
           </div>
 
@@ -559,7 +614,7 @@ export default function HeuresStaffPage() {
       <div className="grid gap-4 px-6 py-6 md:grid-cols-4">
         <StatCard title="Staff" value={String(totalStaff)} tone="yellow" />
         <StatCard
-          title="Heures totaux"
+          title="Heures totales"
           value={formatMinutes(totalMinutes)}
           tone="green"
         />
@@ -776,15 +831,16 @@ export default function HeuresStaffPage() {
                         </div>
 
                         <p className="text-xs text-white/45">
-                          Clique sur un staff pour l’isoler dans la catégorie {role}.
+                          Clique sur un staff pour l’isoler dans la catégorie{" "}
+                          {role}.
                         </p>
                       </div>
                     )}
 
                     <div className="overflow-x-auto">
-                      <div className="min-w-[2450px]">
-                        <div className="grid grid-cols-[320px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 border-b border-yellow-500/10 bg-[#0b0b0b] px-4 py-4 text-xs font-bold uppercase text-yellow-300">
-                          <div>Nom du staff</div>
+                      <div className="min-w-[2400px]">
+                        <div className="grid grid-cols-[340px_180px_repeat(7,150px)_120px_120px_140px_120px] gap-3 border-b border-yellow-500/10 bg-[#0b0b0b] px-4 py-4 text-xs font-bold uppercase text-yellow-300">
+                          <div>Staff / licence</div>
                           <div>Semaine</div>
 
                           {DAY_CONFIG.map((day) => (
@@ -796,17 +852,8 @@ export default function HeuresStaffPage() {
                             </div>
                           ))}
 
-                          <div>R dim</div>
-                          <div>R lun</div>
-                          <div>R mar</div>
-                          <div>R mer</div>
-                          <div>R jeu</div>
-                          <div>R ven</div>
-                          <div>R sam</div>
-
-                          <div>Total rep</div>
                           <div>Total h</div>
-                          <div>Paye</div>
+                          <div>Total rep</div>
                           <div>Auteur</div>
                           <div>Action</div>
                         </div>
@@ -827,13 +874,14 @@ export default function HeuresStaffPage() {
                                 row.staff,
                                 totalMinutesRow
                               );
+                              const copied = !!copiedLicenseByRow[row.id];
 
                               return (
                                 <div
                                   key={row.id}
-                                  className="grid grid-cols-[320px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4"
+                                  className="grid grid-cols-[340px_180px_repeat(7,150px)_120px_120px_140px_120px] gap-3 px-4 py-4"
                                 >
-                                  <div className="space-y-2">
+                                  <div className="space-y-3">
                                     <input
                                       value={row.staff || ""}
                                       onChange={(e) =>
@@ -842,6 +890,35 @@ export default function HeuresStaffPage() {
                                       placeholder="Nom du staff"
                                       className={`${inputClass} border-yellow-500/30`}
                                     />
+
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        value={row.license || ""}
+                                        onChange={(e) =>
+                                          updateRow(row.id, "license", e.target.value)
+                                        }
+                                        placeholder="Licence"
+                                        className={`${inputClass} border-cyan-500/30 bg-cyan-950/10`}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          copyLicense(row.id, row.license || "")
+                                        }
+                                        className={`flex h-[46px] min-w-[46px] items-center justify-center rounded-xl border transition ${
+                                          copied
+                                            ? "border-green-500/30 bg-green-500/15 text-green-300"
+                                            : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20"
+                                        }`}
+                                        title="Copier la licence"
+                                      >
+                                        {copied ? (
+                                          <Check className="h-4 w-4" />
+                                        ) : (
+                                          <Copy className="h-4 w-4" />
+                                        )}
+                                      </button>
+                                    </div>
 
                                     {row.staff?.trim() && (
                                       <button
@@ -857,6 +934,16 @@ export default function HeuresStaffPage() {
                                         Isoler
                                       </button>
                                     )}
+
+                                    <div
+                                      className={`flex items-center justify-center rounded-xl border px-4 py-3 font-extrabold ${
+                                        paye > 0
+                                          ? "border-green-500/30 bg-green-500/15 text-green-300"
+                                          : "border-red-500/30 bg-red-500/15 text-red-300"
+                                      }`}
+                                    >
+                                      Paye : {paye}
+                                    </div>
                                   </div>
 
                                   <input
@@ -868,9 +955,15 @@ export default function HeuresStaffPage() {
                                     className={`${inputClass} border-yellow-500/30`}
                                   />
 
-                                  {HOUR_DAYS.map((day) => {
-                                    const dayValue = String(row[day] || "");
-                                    const lowerValue = dayValue.trim().toLowerCase();
+                                  {DAY_CONFIG.map((day) => {
+                                    const dayValue = String(row[day.key] || "");
+                                    const reportValue = String(
+                                      row[day.reportKey] || ""
+                                    );
+
+                                    const lowerValue = dayValue
+                                      .trim()
+                                      .toLowerCase();
                                     const isImprevu =
                                       lowerValue === "imprévu" ||
                                       lowerValue === "imprevu";
@@ -883,55 +976,51 @@ export default function HeuresStaffPage() {
                                       totalDayMinutes > 0 &&
                                       totalDayMinutes < 60;
 
+                                    const hourClass = isImprevu
+                                      ? `${inputClass} border-blue-400/40 bg-blue-500/10 font-bold text-blue-200 shadow-[0_0_0_1px_rgba(96,165,250,0.08)]`
+                                      : isZeroHour
+                                      ? `${inputClass} border-red-400/40 bg-red-500/10 font-bold text-red-200 shadow-[0_0_0_1px_rgba(248,113,113,0.08)]`
+                                      : isLessThanOneHour
+                                      ? `${inputClass} border-yellow-400/40 bg-yellow-500/10 font-bold text-yellow-200 shadow-[0_0_0_1px_rgba(250,204,21,0.08)]`
+                                      : `${inputClass} border-green-500/30 bg-green-950/10`;
+
                                     return (
-                                      <input
-                                        key={String(day)}
-                                        value={dayValue}
-                                        onChange={(e) =>
-                                          updateRow(row.id, day, e.target.value)
-                                        }
-                                        placeholder="2h30"
-                                        className={
-                                          isImprevu
-                                            ? `${inputClass} border-blue-400/40 bg-blue-500/10 font-bold text-blue-200 shadow-[0_0_0_1px_rgba(96,165,250,0.08)]`
-                                            : isZeroHour
-                                            ? `${inputClass} border-red-400/40 bg-red-500/10 font-bold text-red-200 shadow-[0_0_0_1px_rgba(248,113,113,0.08)]`
-                                            : isLessThanOneHour
-                                            ? `${inputClass} border-yellow-400/40 bg-yellow-500/10 font-bold text-yellow-200 shadow-[0_0_0_1px_rgba(250,204,21,0.08)]`
-                                            : `${inputClass} border-green-500/30 bg-green-950/10`
-                                        }
-                                      />
+                                      <div key={day.key} className="space-y-2">
+                                        <input
+                                          value={dayValue}
+                                          onChange={(e) =>
+                                            updateRow(
+                                              row.id,
+                                              day.key,
+                                              e.target.value
+                                            )
+                                          }
+                                          placeholder="2h30"
+                                          className={hourClass}
+                                        />
+
+                                        <input
+                                          value={reportValue}
+                                          onChange={(e) =>
+                                            updateRow(
+                                              row.id,
+                                              day.reportKey,
+                                              e.target.value
+                                            )
+                                          }
+                                          placeholder="Reports"
+                                          className={`${inputClass} border-blue-500/30 bg-blue-950/10 text-blue-200`}
+                                        />
+                                      </div>
                                     );
                                   })}
-
-                                  {REPORT_DAYS.map((day) => (
-                                    <input
-                                      key={String(day)}
-                                      value={String(row[day] || "")}
-                                      onChange={(e) =>
-                                        updateRow(row.id, day, e.target.value)
-                                      }
-                                      placeholder="0"
-                                      className={`${inputClass} border-blue-500/30 bg-blue-950/10`}
-                                    />
-                                  ))}
-
-                                  <div className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 font-extrabold text-blue-300">
-                                    {totalReportsRow}
-                                  </div>
 
                                   <div className="flex items-center justify-center rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 font-extrabold text-yellow-300">
                                     {formatMinutes(totalMinutesRow)}
                                   </div>
 
-                                  <div
-                                    className={`flex items-center justify-center rounded-xl border px-4 py-3 font-extrabold ${
-                                      paye > 0
-                                        ? "border-green-500/30 bg-green-500/15 text-green-300"
-                                        : "border-red-500/30 bg-red-500/15 text-red-300"
-                                    }`}
-                                  >
-                                    {paye}
+                                  <div className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 font-extrabold text-blue-300">
+                                    {totalReportsRow}
                                   </div>
 
                                   <input
@@ -943,10 +1032,10 @@ export default function HeuresStaffPage() {
                                     className={`${inputClass} border-purple-500/30 bg-purple-950/10`}
                                   />
 
-                                  <div>
+                                  <div className="space-y-2">
                                     <button
                                       onClick={() => deleteRow(row.id)}
-                                      className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
+                                      className="w-full rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
                                     >
                                       Suppr.
                                     </button>
