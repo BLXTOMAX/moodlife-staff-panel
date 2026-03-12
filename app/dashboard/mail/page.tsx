@@ -196,7 +196,12 @@ export default function MailPage() {
     );
   }, [entries, search]);
 
-  const hasAccess = entries.length > 0;
+  const hasAccess = useMemo(() => {
+  if (!sessionEmail) return false;
+  return entries.some(
+    (entry) => entry.email.toLowerCase() === sessionEmail.toLowerCase()
+  );
+}, [entries, sessionEmail]);
 
   const stats = useMemo(() => {
     return {
