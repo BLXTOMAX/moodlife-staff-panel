@@ -1,12 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Lock, Mail } from "lucide-react";
+import { Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,6 +40,8 @@ export default function LoginPage() {
       }
 
       localStorage.setItem("moodlife-session-email", normalizedEmail);
+      localStorage.removeItem("moodlife-email");
+
       window.location.href = "/dashboard/info";
     } catch (error) {
       console.error("Erreur login :", error);
@@ -53,85 +52,160 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-4">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050505] px-4">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(234,179,8,0.10),transparent_28%),radial-gradient(circle_at_right,rgba(250,204,21,0.08),transparent_24%)]" />
 
-      {/* BACKGROUND */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,215,0,0.20),transparent_40%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(255,200,0,0.10),transparent_50%)]" />
+      <div className="absolute inset-0 opacity-[0.06] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:72px_72px]" />
 
-      <div className="absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-yellow-400/10 blur-[120px]" />
-      <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-yellow-500/10 blur-[120px]" />
-      <div className="absolute right-0 top-1/3 h-72 w-72 rounded-full bg-yellow-300/10 blur-[120px]" />
+      <div className="absolute left-1/2 top-[-80px] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-yellow-400/12 blur-[130px]" />
+      <div className="absolute bottom-[-100px] left-[-60px] h-[320px] w-[320px] rounded-full bg-amber-300/10 blur-[120px]" />
+      <div className="absolute right-[-40px] top-1/4 h-[260px] w-[260px] rounded-full bg-yellow-500/10 blur-[120px]" />
 
-      {/* LOGIN CARD */}
-      <div className="relative w-full max-w-md rounded-[32px] border border-yellow-400/20 bg-[#0b0b0b]/85 p-10 shadow-[0_20px_60px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-[12%] top-[18%] h-2 w-2 rounded-full bg-yellow-300/40 blur-[1px]" />
+        <div className="absolute right-[16%] top-[24%] h-1.5 w-1.5 rounded-full bg-yellow-200/40 blur-[1px]" />
+        <div className="absolute bottom-[22%] left-[20%] h-1.5 w-1.5 rounded-full bg-yellow-400/35 blur-[1px]" />
+        <div className="absolute bottom-[18%] right-[18%] h-2 w-2 rounded-full bg-amber-200/30 blur-[1px]" />
+      </div>
 
-        {/* HEADER */}
-        <div className="mb-10 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-yellow-300">
-            Panel Staff
-          </p>
+      <div className="relative w-full max-w-[1100px]">
+        <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="hidden lg:block">
+            <div className="max-w-xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.26em] text-yellow-300">
+                <Sparkles className="h-3.5 w-3.5" />
+                Panel privé MoodLife
+              </div>
 
-          <h1 className="mt-4 text-4xl font-black text-white">
-            Connexion MoodLife
-          </h1>
+              <h1 className="mt-6 text-6xl font-black leading-[0.95] tracking-tight text-white">
+                Accès Staff
+                <span className="block bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] bg-clip-text text-transparent">
+                  premium
+                </span>
+              </h1>
 
-          <p className="mt-2 text-sm text-white/60">
-            Accès sécurisé au panel staff
-          </p>
+              <div className="mt-6 h-px w-44 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
 
-          <div className="mx-auto mt-5 h-px w-40 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
-        </div>
+              <p className="mt-6 max-w-lg text-base leading-8 text-white/68">
+                Connecte-toi à l’espace interne MoodLife pour accéder aux
+                outils, aux commandes staff, aux procédures et aux informations
+                essentielles du serveur.
+              </p>
 
-        {/* FORM */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="mt-10 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
+                  <div className="flex items-center gap-3 text-yellow-300">
+                    <ShieldCheck className="h-5 w-5" />
+                    <p className="text-sm font-semibold text-white">
+                      Accès sécurisé
+                    </p>
+                  </div>
+                  <p className="mt-3 text-sm leading-7 text-white/58">
+                    Connexion réservée à l’équipe autorisée avec session privée.
+                  </p>
+                </div>
 
-          {/* EMAIL */}
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-
-            <input
-              type="email"
-              placeholder="Adresse mail"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-2xl border border-yellow-400/20 bg-black/60 py-4 pl-11 pr-4 text-white outline-none transition placeholder:text-white/35 focus:border-yellow-400/40"
-            />
+                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
+                  <div className="flex items-center gap-3 text-yellow-300">
+                    <Sparkles className="h-5 w-5" />
+                    <p className="text-sm font-semibold text-white">
+                      Interface premium
+                    </p>
+                  </div>
+                  <p className="mt-3 text-sm leading-7 text-white/58">
+                    Un panel élégant, rapide et pensé pour une utilisation staff
+                    quotidienne.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* PASSWORD */}
           <div className="relative">
-            <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+            <div className="absolute inset-0 rounded-[36px] bg-[linear-gradient(135deg,rgba(250,204,21,0.12),rgba(255,255,255,0.02),rgba(0,0,0,0.02))] blur-2xl" />
 
-            <input
-              type="password"
-              placeholder="Mot de passe"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-2xl border border-yellow-400/20 bg-black/60 py-4 pl-11 pr-4 text-white outline-none transition placeholder:text-white/35 focus:border-yellow-400/40"
-            />
+            <div className="relative overflow-hidden rounded-[34px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(12,12,12,0.92),rgba(8,8,8,0.88))] p-8 shadow-[0_30px_80px_rgba(0,0,0,0.56)] backdrop-blur-xl sm:p-10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.08),transparent_30%)]" />
+              <div className="absolute right-0 top-0 h-36 w-36 rounded-full bg-yellow-300/8 blur-3xl" />
+              <div className="absolute bottom-0 left-0 h-28 w-28 rounded-full bg-yellow-500/8 blur-3xl" />
+
+              <div className="relative">
+                <div className="mb-8 text-center">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-yellow-400/20 bg-yellow-400/10 text-yellow-300 shadow-[0_0_30px_rgba(250,204,21,0.10)]">
+                    <ShieldCheck className="h-8 w-8" />
+                  </div>
+
+                  <p className="mt-5 text-xs font-semibold uppercase tracking-[0.35em] text-yellow-300">
+                    Connexion sécurisée
+                  </p>
+
+                  <h2 className="mt-4 text-4xl font-black tracking-tight text-white">
+                    Connexion MoodLife
+                  </h2>
+
+                  <p className="mt-3 text-sm leading-7 text-white/58">
+                    Accède à l’environnement staff avec ton adresse mail et ton
+                    mot de passe.
+                  </p>
+
+                  <div className="mx-auto mt-5 h-px w-40 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-white/42">
+                      Adresse mail
+                    </label>
+
+                    <div className="group relative">
+                      <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30 transition group-focus-within:text-yellow-300" />
+                      <input
+                        type="email"
+                        placeholder="exemple@moodlife-rp.net"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.03] py-3 pl-11 pr-4 text-white outline-none transition placeholder:text-white/25 focus:border-yellow-400/30 focus:bg-white/[0.05]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-white/42">
+                      Mot de passe
+                    </label>
+
+                    <div className="group relative">
+                      <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30 transition group-focus-within:text-yellow-300" />
+                      <input
+                        type="password"
+                        placeholder="Entre ton mot de passe"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.03] py-3 pl-11 pr-4 text-white outline-none transition placeholder:text-white/25 focus:border-yellow-400/30 focus:bg-white/[0.05]"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="group relative mt-2 w-full overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] px-4 py-4 font-bold text-black shadow-[0_18px_34px_rgba(250,204,21,0.22)] transition duration-300 hover:scale-[1.01] hover:shadow-[0_22px_42px_rgba(250,204,21,0.30)] disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    <span className="relative z-10">
+                      {loading ? "Connexion..." : "Se connecter"}
+                    </span>
+                    <div className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100 bg-[linear-gradient(135deg,#facc15,#fde047,#fbbf24)]" />
+                  </button>
+                </form>
+
+                <div className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-white/38">
+                  <ShieldCheck className="h-3.5 w-3.5 text-yellow-300/70" />
+                  Session interne MoodLife • accès réservé au staff autorisé
+                </div>
+              </div>
+            </div>
           </div>
-
-          {/* BUTTON */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="group relative w-full overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] py-4 font-bold text-black shadow-[0_12px_30px_rgba(250,204,21,0.30)] transition hover:scale-[1.02] disabled:opacity-70"
-          >
-            <span className="relative z-10">
-              {loading ? "Connexion..." : "Se connecter"}
-            </span>
-
-            <div className="absolute inset-0 opacity-0 transition group-hover:opacity-100 bg-[linear-gradient(135deg,#facc15,#fde047,#fbbf24)]" />
-          </button>
-
-        </form>
-
-        {/* FOOTER */}
-        <div className="mt-8 text-center text-xs text-white/40">
-          MoodLife RP • Panel Staff sécurisé
         </div>
-
       </div>
     </main>
   );
