@@ -30,25 +30,56 @@ type HeuresRow = {
   isNew?: boolean;
 };
 
-const HOUR_DAYS: Array<keyof HeuresRow> = [
-  "lundi",
-  "mardi",
-  "mercredi",
-  "jeudi",
-  "vendredi",
-  "samedi",
-  "dimanche",
-];
+const DAY_CONFIG = [
+  {
+    key: "dimanche" as keyof HeuresRow,
+    reportKey: "reports_dimanche" as keyof HeuresRow,
+    label: "DIMANCHE",
+    short: "DIM",
+  },
+  {
+    key: "lundi" as keyof HeuresRow,
+    reportKey: "reports_lundi" as keyof HeuresRow,
+    label: "LUNDI",
+    short: "LUN",
+  },
+  {
+    key: "mardi" as keyof HeuresRow,
+    reportKey: "reports_mardi" as keyof HeuresRow,
+    label: "MARDI",
+    short: "MAR",
+  },
+  {
+    key: "mercredi" as keyof HeuresRow,
+    reportKey: "reports_mercredi" as keyof HeuresRow,
+    label: "MERCREDI",
+    short: "MER",
+  },
+  {
+    key: "jeudi" as keyof HeuresRow,
+    reportKey: "reports_jeudi" as keyof HeuresRow,
+    label: "JEUDI",
+    short: "JEU",
+  },
+  {
+    key: "vendredi" as keyof HeuresRow,
+    reportKey: "reports_vendredi" as keyof HeuresRow,
+    label: "VENDREDI",
+    short: "VEN",
+  },
+  {
+    key: "samedi" as keyof HeuresRow,
+    reportKey: "reports_samedi" as keyof HeuresRow,
+    label: "SAMEDI",
+    short: "SAM",
+  },
+] as const;
 
-const REPORT_DAYS: Array<keyof HeuresRow> = [
-  "reports_lundi",
-  "reports_mardi",
-  "reports_mercredi",
-  "reports_jeudi",
-  "reports_vendredi",
-  "reports_samedi",
-  "reports_dimanche",
-];
+const HOUR_DAYS: Array<keyof HeuresRow> = DAY_CONFIG.map((day) => day.key);
+
+const REPORT_DAYS: Array<keyof HeuresRow> = DAY_CONFIG.map(
+  (day) => day.reportKey
+);
 
 const ROLE_ORDER = [
   "Helpeur",
@@ -56,16 +87,6 @@ const ROLE_ORDER = [
   "Administrateur",
   "Super-Administrateur",
   "Gérant-Staff",
-] as const;
-
-const DAY_LABELS = [
-  { key: "lundi", short: "Lun" },
-  { key: "mardi", short: "Mar" },
-  { key: "mercredi", short: "Mer" },
-  { key: "jeudi", short: "Jeu" },
-  { key: "vendredi", short: "Ven" },
-  { key: "samedi", short: "Sam" },
-  { key: "dimanche", short: "Dim" },
 ] as const;
 
 export default function HeuresStaffPage() {
@@ -560,8 +581,8 @@ export default function HeuresStaffPage() {
                     </button>
 
                     <div
-                      className={`rounded-full border border-yellow-400/20 bg-yellow-400/10 p-2 text-yellow-300 transition duration-300 ${
-                        isOpen ? "rotate-180" : ""
+                      className={`rounded-full border border-yellow-400/20 bg-yellow-400/10 p-2 text-yellow-300 transition-all duration-500 ease-in-out ${
+                        isOpen ? "rotate-180 scale-105" : "rotate-0 scale-100"
                       }`}
                     >
                       <ChevronDown className="h-4 w-4" />
@@ -569,236 +590,249 @@ export default function HeuresStaffPage() {
                   </div>
                 </button>
 
-                {isOpen && group.length > 0 && (
-                  <div className="border-b border-yellow-500/10 bg-[#080808] px-5 py-4">
-                    <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFocusedStaffByRole((prev) => ({
-                            ...prev,
-                            [role]: null,
-                          }))
-                        }
-                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                          !focusedStaff
-                            ? "border-yellow-400/30 bg-yellow-400/12 text-yellow-300"
-                            : "border-white/10 bg-white/[0.03] text-white/65 hover:border-yellow-400/20 hover:text-yellow-200"
-                        }`}
-                      >
-                        Voir tous
-                      </button>
-
-                      {group.map((row) => {
-                        const staffName = row.staff?.trim() || "Sans nom";
-                        const isActive =
-                          focusedStaff?.trim().toLowerCase() ===
-                          staffName.toLowerCase();
-
-                        return (
+                <div
+                  className={`grid transition-all duration-500 ease-in-out ${
+                    isOpen
+                      ? "grid-rows-[1fr] opacity-100"
+                      : "grid-rows-[0fr] opacity-0"
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    {group.length > 0 && (
+                      <div className="border-b border-yellow-500/10 bg-[#080808] px-5 py-4">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
                           <button
-                            key={`${role}-${row.id}`}
                             type="button"
                             onClick={() =>
                               setFocusedStaffByRole((prev) => ({
                                 ...prev,
-                                [role]: staffName,
+                                [role]: null,
                               }))
                             }
                             className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                              isActive
-                                ? "border-green-400/30 bg-green-500/10 text-green-300"
-                                : "border-white/10 bg-white/[0.03] text-white/70 hover:border-yellow-400/20 hover:text-yellow-200"
+                              !focusedStaff
+                                ? "border-yellow-400/30 bg-yellow-400/12 text-yellow-300"
+                                : "border-white/10 bg-white/[0.03] text-white/65 hover:border-yellow-400/20 hover:text-yellow-200"
                             }`}
                           >
-                            {staffName}
+                            Voir tous
                           </button>
-                        );
-                      })}
-                    </div>
 
-                    <p className="text-xs text-white/45">
-                      Clique sur un staff pour l’isoler dans la catégorie {role}.
-                    </p>
-                  </div>
-                )}
-
-                {isOpen && (
-                  <div className="overflow-x-auto">
-                    <div className="min-w-[2450px]">
-                      <div className="grid grid-cols-[320px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 border-b border-yellow-500/10 bg-[#0b0b0b] px-4 py-4 text-xs font-bold uppercase text-yellow-300">
-                        <div>Nom du staff</div>
-                        <div>Semaine</div>
-
-                        {DAY_LABELS.map((day, index) => (
-                          <div key={day.key} className="leading-4">
-                            <div>{day.short} h</div>
-                            <div className="mt-1 text-[10px] font-medium normal-case text-white/45">
-                              {weekDates[index] || "--/--"}
-                            </div>
-                          </div>
-                        ))}
-
-                        <div>R lun</div>
-                        <div>R mar</div>
-                        <div>R mer</div>
-                        <div>R jeu</div>
-                        <div>R ven</div>
-                        <div>R sam</div>
-                        <div>R dim</div>
-
-                        <div>Total rep</div>
-                        <div>Total h</div>
-                        <div>Paye</div>
-                        <div>Auteur</div>
-                        <div>Action</div>
-                      </div>
-
-                      {displayedGroup.length === 0 ? (
-                        <div className="px-4 py-8 text-sm text-gray-500">
-                          {focusedStaff
-                            ? `Aucun résultat pour ${focusedStaff} dans cette catégorie.`
-                            : "Aucun staff dans cette catégorie pour cette semaine."}
-                        </div>
-                      ) : (
-                        <div className="divide-y divide-yellow-500/10">
-                          {displayedGroup.map((row) => {
-                            const totalMinutesRow = computeTotalMinutes(row);
-                            const totalReportsRow = computeTotalReports(row);
-                            const paye = computePaye(
-                              row.role,
-                              row.staff,
-                              totalMinutesRow
-                            );
+                          {group.map((row) => {
+                            const staffName = row.staff?.trim() || "Sans nom";
+                            const isActive =
+                              focusedStaff?.trim().toLowerCase() ===
+                              staffName.toLowerCase();
 
                             return (
-                              <div
-                                key={row.id}
-                                className={`grid grid-cols-[320px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4 ${
-                                  row.isNew ? "bg-yellow-500/5" : ""
+                              <button
+                                key={`${role}-${row.id}`}
+                                type="button"
+                                onClick={() =>
+                                  setFocusedStaffByRole((prev) => ({
+                                    ...prev,
+                                    [role]: staffName,
+                                  }))
+                                }
+                                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                  isActive
+                                    ? "border-green-400/30 bg-green-500/10 text-green-300"
+                                    : "border-white/10 bg-white/[0.03] text-white/70 hover:border-yellow-400/20 hover:text-yellow-200"
                                 }`}
                               >
-                                <div className="space-y-2">
-                                  <input
-                                    value={row.staff || ""}
-                                    onChange={(e) =>
-                                      updateRow(row.id, "staff", e.target.value)
-                                    }
-                                    placeholder="Nom du staff"
-                                    className={`${inputClass} border-yellow-500/30`}
-                                  />
-
-                                  {row.staff?.trim() && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setFocusedStaffByRole((prev) => ({
-                                          ...prev,
-                                          [role]: row.staff.trim(),
-                                        }))
-                                      }
-                                      className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-300 transition hover:bg-yellow-500/20"
-                                    >
-                                      Isoler
-                                    </button>
-                                  )}
-                                </div>
-
-                                <input
-                                  value={row.semaine || ""}
-                                  onChange={(e) =>
-                                    updateRow(row.id, "semaine", e.target.value)
-                                  }
-                                  placeholder={activeWeek}
-                                  className={`${inputClass} border-yellow-500/30`}
-                                />
-
-                                {HOUR_DAYS.map((day) => {
-  const dayValue = String(row[day] || "");
-  const lowerValue = dayValue.trim().toLowerCase();
-  const isImprevu =
-    lowerValue === "imprévu" || lowerValue === "imprevu";
-  const isZeroHour = isZeroHourValue(dayValue);
-  const totalDayMinutes = parseDurationToMinutes(dayValue);
-  const isLessThanOneHour =
-    !isImprevu && !isZeroHour && totalDayMinutes > 0 && totalDayMinutes < 60;
-
-  return (
-    <input
-      key={String(day)}
-      value={dayValue}
-      onChange={(e) =>
-        updateRow(row.id, day, e.target.value)
-      }
-      placeholder="2h30"
-      className={
-        isImprevu
-          ? `${inputClass} border-blue-400/40 bg-blue-500/10 font-bold text-blue-200 shadow-[0_0_0_1px_rgba(96,165,250,0.08)]`
-          : isZeroHour
-          ? `${inputClass} border-red-400/40 bg-red-500/10 font-bold text-red-200 shadow-[0_0_0_1px_rgba(248,113,113,0.08)]`
-          : isLessThanOneHour
-          ? `${inputClass} border-yellow-400/40 bg-yellow-500/10 font-bold text-yellow-200 shadow-[0_0_0_1px_rgba(250,204,21,0.08)]`
-          : `${inputClass} border-green-500/30 bg-green-950/10`
-      }
-    />
-  );
-})}
-
-                                {REPORT_DAYS.map((day) => (
-                                  <input
-                                    key={String(day)}
-                                    value={String(row[day] || "")}
-                                    onChange={(e) =>
-                                      updateRow(row.id, day, e.target.value)
-                                    }
-                                    placeholder="0"
-                                    className={`${inputClass} border-blue-500/30 bg-blue-950/10`}
-                                  />
-                                ))}
-
-                                <div className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 font-extrabold text-blue-300">
-                                  {totalReportsRow}
-                                </div>
-
-                                <div className="flex items-center justify-center rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 font-extrabold text-yellow-300">
-                                  {formatMinutes(totalMinutesRow)}
-                                </div>
-
-                                <div
-                                  className={`flex items-center justify-center rounded-xl border px-4 py-3 font-extrabold ${
-                                    paye > 0
-                                      ? "border-green-500/30 bg-green-500/15 text-green-300"
-                                      : "border-red-500/30 bg-red-500/15 text-red-300"
-                                  }`}
-                                >
-                                  {paye}
-                                </div>
-
-                                <input
-                                  value={row.auteur || ""}
-                                  onChange={(e) =>
-                                    updateRow(row.id, "auteur", e.target.value)
-                                  }
-                                  placeholder="Auteur"
-                                  className={`${inputClass} border-purple-500/30 bg-purple-950/10`}
-                                />
-
-                                <div>
-                                  <button
-                                    onClick={() => deleteRow(row.id)}
-                                    className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
-                                  >
-                                    Suppr.
-                                  </button>
-                                </div>
-                              </div>
+                                {staffName}
+                              </button>
                             );
                           })}
                         </div>
-                      )}
+
+                        <p className="text-xs text-white/45">
+                          Clique sur un staff pour l’isoler dans la catégorie {role}.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="overflow-x-auto">
+                      <div className="min-w-[2450px]">
+                        <div className="grid grid-cols-[320px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 border-b border-yellow-500/10 bg-[#0b0b0b] px-4 py-4 text-xs font-bold uppercase text-yellow-300">
+                          <div>Nom du staff</div>
+                          <div>Semaine</div>
+
+                          {DAY_CONFIG.map((day) => (
+                            <div key={day.key} className="leading-4">
+                              <div>{day.label}</div>
+                              <div className="mt-1 text-[10px] font-medium normal-case text-white/45">
+                                {weekDates[day.key] || "--/--"}
+                              </div>
+                            </div>
+                          ))}
+
+                          <div>R dim</div>
+                          <div>R lun</div>
+                          <div>R mar</div>
+                          <div>R mer</div>
+                          <div>R jeu</div>
+                          <div>R ven</div>
+                          <div>R sam</div>
+
+                          <div>Total rep</div>
+                          <div>Total h</div>
+                          <div>Paye</div>
+                          <div>Auteur</div>
+                          <div>Action</div>
+                        </div>
+
+                        {displayedGroup.length === 0 ? (
+                          <div className="px-4 py-8 text-sm text-gray-500">
+                            {focusedStaff
+                              ? `Aucun résultat pour ${focusedStaff} dans cette catégorie.`
+                              : "Aucun staff dans cette catégorie pour cette semaine."}
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-yellow-500/10">
+                            {displayedGroup.map((row) => {
+                              const totalMinutesRow = computeTotalMinutes(row);
+                              const totalReportsRow = computeTotalReports(row);
+                              const paye = computePaye(
+                                row.role,
+                                row.staff,
+                                totalMinutesRow
+                              );
+
+                              return (
+                                <div
+                                  key={row.id}
+                                  className={`grid grid-cols-[320px_170px_repeat(7,125px)_repeat(7,90px)_120px_130px_130px_120px] gap-3 px-4 py-4 ${
+                                    row.isNew ? "bg-yellow-500/5" : ""
+                                  }`}
+                                >
+                                  <div className="space-y-2">
+                                    <input
+                                      value={row.staff || ""}
+                                      onChange={(e) =>
+                                        updateRow(row.id, "staff", e.target.value)
+                                      }
+                                      placeholder="Nom du staff"
+                                      className={`${inputClass} border-yellow-500/30`}
+                                    />
+
+                                    {row.staff?.trim() && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setFocusedStaffByRole((prev) => ({
+                                            ...prev,
+                                            [role]: row.staff.trim(),
+                                          }))
+                                        }
+                                        className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-300 transition hover:bg-yellow-500/20"
+                                      >
+                                        Isoler
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  <input
+                                    value={row.semaine || ""}
+                                    onChange={(e) =>
+                                      updateRow(row.id, "semaine", e.target.value)
+                                    }
+                                    placeholder={activeWeek}
+                                    className={`${inputClass} border-yellow-500/30`}
+                                  />
+
+                                  {HOUR_DAYS.map((day) => {
+                                    const dayValue = String(row[day] || "");
+                                    const lowerValue = dayValue.trim().toLowerCase();
+                                    const isImprevu =
+                                      lowerValue === "imprévu" ||
+                                      lowerValue === "imprevu";
+                                    const isZeroHour = isZeroHourValue(dayValue);
+                                    const totalDayMinutes =
+                                      parseDurationToMinutes(dayValue);
+                                    const isLessThanOneHour =
+                                      !isImprevu &&
+                                      !isZeroHour &&
+                                      totalDayMinutes > 0 &&
+                                      totalDayMinutes < 60;
+
+                                    return (
+                                      <input
+                                        key={String(day)}
+                                        value={dayValue}
+                                        onChange={(e) =>
+                                          updateRow(row.id, day, e.target.value)
+                                        }
+                                        placeholder="2h30"
+                                        className={
+                                          isImprevu
+                                            ? `${inputClass} border-blue-400/40 bg-blue-500/10 font-bold text-blue-200 shadow-[0_0_0_1px_rgba(96,165,250,0.08)]`
+                                            : isZeroHour
+                                            ? `${inputClass} border-red-400/40 bg-red-500/10 font-bold text-red-200 shadow-[0_0_0_1px_rgba(248,113,113,0.08)]`
+                                            : isLessThanOneHour
+                                            ? `${inputClass} border-yellow-400/40 bg-yellow-500/10 font-bold text-yellow-200 shadow-[0_0_0_1px_rgba(250,204,21,0.08)]`
+                                            : `${inputClass} border-green-500/30 bg-green-950/10`
+                                        }
+                                      />
+                                    );
+                                  })}
+
+                                  {REPORT_DAYS.map((day) => (
+                                    <input
+                                      key={String(day)}
+                                      value={String(row[day] || "")}
+                                      onChange={(e) =>
+                                        updateRow(row.id, day, e.target.value)
+                                      }
+                                      placeholder="0"
+                                      className={`${inputClass} border-blue-500/30 bg-blue-950/10`}
+                                    />
+                                  ))}
+
+                                  <div className="flex items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 font-extrabold text-blue-300">
+                                    {totalReportsRow}
+                                  </div>
+
+                                  <div className="flex items-center justify-center rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 font-extrabold text-yellow-300">
+                                    {formatMinutes(totalMinutesRow)}
+                                  </div>
+
+                                  <div
+                                    className={`flex items-center justify-center rounded-xl border px-4 py-3 font-extrabold ${
+                                      paye > 0
+                                        ? "border-green-500/30 bg-green-500/15 text-green-300"
+                                        : "border-red-500/30 bg-red-500/15 text-red-300"
+                                    }`}
+                                  >
+                                    {paye}
+                                  </div>
+
+                                  <input
+                                    value={row.auteur || ""}
+                                    onChange={(e) =>
+                                      updateRow(row.id, "auteur", e.target.value)
+                                    }
+                                    placeholder="Auteur"
+                                    className={`${inputClass} border-purple-500/30 bg-purple-950/10`}
+                                  />
+
+                                  <div>
+                                    <button
+                                      onClick={() => deleteRow(row.id)}
+                                      className="rounded-xl border border-red-700/60 bg-red-950/50 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-900/60"
+                                    >
+                                      Suppr.
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             );
           })
@@ -923,21 +957,43 @@ function parseWeekLabel(label: string) {
 
 function buildWeekDateLabels(label: string) {
   const parsed = parseWeekLabel(label);
-  if (!parsed) return Array(7).fill("");
-
-  const dates: string[] = [];
-  const current = new Date(parsed.start);
-
-  for (let i = 0; i < 7; i += 1) {
-    dates.push(
-      `${String(current.getDate()).padStart(2, "0")}/${String(
-        current.getMonth() + 1
-      ).padStart(2, "0")}`
-    );
-    current.setDate(current.getDate() + 1);
+  if (!parsed) {
+    return {
+      dimanche: "",
+      lundi: "",
+      mardi: "",
+      mercredi: "",
+      jeudi: "",
+      vendredi: "",
+      samedi: "",
+    };
   }
 
-  return dates;
+  const monday = new Date(parsed.start);
+
+  const datesByDay: Record<string, string> = {
+    lundi: formatDateShort(addDays(monday, 0)),
+    mardi: formatDateShort(addDays(monday, 1)),
+    mercredi: formatDateShort(addDays(monday, 2)),
+    jeudi: formatDateShort(addDays(monday, 3)),
+    vendredi: formatDateShort(addDays(monday, 4)),
+    samedi: formatDateShort(addDays(monday, 5)),
+    dimanche: formatDateShort(addDays(monday, 6)),
+  };
+
+  return datesByDay;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function formatDateShort(date: Date) {
+  return `${String(date.getDate()).padStart(2, "0")}/${String(
+    date.getMonth() + 1
+  ).padStart(2, "0")}`;
 }
 
 function isZeroHourValue(value: string) {
