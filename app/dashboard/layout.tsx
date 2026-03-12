@@ -97,7 +97,7 @@ export default function DashboardLayout({
 
   if (allowed === null) {
     return (
-      <div className="min-h-screen bg-black p-6 text-white">
+      <div className="min-h-screen bg-transparent p-6 text-white">
         Chargement...
       </div>
     );
@@ -105,19 +105,27 @@ export default function DashboardLayout({
 
   if (!allowed) {
     return (
-      <div className="min-h-screen bg-black p-6 text-white">
+      <div className="min-h-screen bg-transparent p-6 text-white">
         Redirection...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-transparent text-white">
       <SitePresenceTracker />
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <main className="flex-1 overflow-x-hidden">{children}</main>
+
+      <div className="flex min-h-screen bg-transparent">
+        <div className="shrink-0">
+          <Sidebar />
+        </div>
+
+        <main className="flex-1 overflow-x-hidden bg-transparent p-4 md:p-6">
+          {children}
+        </main>
       </div>
+
+      <StaffFaqBot />
     </div>
   );
 }
