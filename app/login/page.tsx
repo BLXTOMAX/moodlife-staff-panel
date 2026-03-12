@@ -80,7 +80,7 @@ export default function LoginPage() {
               <h1 className="mt-6 text-6xl font-black leading-[0.95] tracking-tight text-white">
                 Accès Staff
                 <span className="block bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] bg-clip-text text-transparent">
-                  premium
+                
                 </span>
               </h1>
 
