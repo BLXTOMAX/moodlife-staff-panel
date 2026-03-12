@@ -5,14 +5,14 @@ import { useMemo } from "react";
 export default function GlobalSiteBackground() {
   const particles = useMemo(
     () =>
-      Array.from({ length: 70 }, (_, i) => ({
+      Array.from({ length: 120 }, (_, i) => ({
         id: i,
         left: `${Math.random() * 100}%`,
         top: `${Math.random() * 100}%`,
         size: 2 + Math.random() * 4,
         duration: 6 + Math.random() * 8,
         delay: Math.random() * 5,
-        opacity: 0.25 + Math.random() * 0.75,
+        opacity: 0.2 + Math.random() * 0.8,
       })),
     []
   );
