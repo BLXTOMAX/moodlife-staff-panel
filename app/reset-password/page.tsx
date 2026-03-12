@@ -1,9 +1,9 @@
 "use client";
 
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
@@ -62,39 +62,53 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-md space-y-4 rounded-3xl border border-yellow-400/20 bg-white/5 p-6"
+    <form
+      onSubmit={handleSubmit}
+      className="w-full max-w-md space-y-4 rounded-3xl border border-yellow-400/20 bg-white/5 p-6"
+    >
+      <h1 className="text-2xl font-black">Nouveau mot de passe</h1>
+
+      <input
+        type="password"
+        placeholder="Nouveau mot de passe"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none"
+      />
+
+      <input
+        type="password"
+        placeholder="Confirmer le mot de passe"
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none"
+      />
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full rounded-2xl bg-yellow-400 px-4 py-3 font-bold text-black"
       >
-        <h1 className="text-2xl font-black">Nouveau mot de passe</h1>
+        {loading ? "Validation..." : "Changer le mot de passe"}
+      </button>
 
-        <input
-          type="password"
-          placeholder="Nouveau mot de passe"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none"
-        />
+      {message && <p className="text-sm text-white/80">{message}</p>}
+    </form>
+  );
+}
 
-        <input
-          type="password"
-          placeholder="Confirmer le mot de passe"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none"
-        />
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-2xl bg-yellow-400 px-4 py-3 font-bold text-black"
-        >
-          {loading ? "Validation..." : "Changer le mot de passe"}
-        </button>
-
-        {message && <p className="text-sm text-white/80">{message}</p>}
-      </form>
+export default function ResetPasswordPage() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
+      <Suspense
+        fallback={
+          <div className="w-full max-w-md rounded-3xl border border-yellow-400/20 bg-white/5 p-6 text-center text-white/80">
+            Chargement...
+          </div>
+        }
+      >
+        <ResetPasswordForm />
+      </Suspense>
     </div>
   );
 }
