@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { getSessionEmail, isOwner } from "@/lib/access";
+import { supabase } from "@/lib/supabase";
 import {
   LayoutDashboard,
   Info,
@@ -23,6 +26,8 @@ type SidebarLink = {
   icon: React.ComponentType<{ className?: string }>;
   section: "principal" | "staff";
 };
+
+const ALWAYS_ALLOWED = ["/dashboard/info", "/dashboard"];
 
 const links: SidebarLink[] = [
   {
@@ -96,6 +101,8 @@ function SidebarSection({
   items: SidebarLink[];
   pathname: string;
 }) {
+  if (items.length === 0) return null;
+
   return (
     <div>
       <div className="mb-3 flex items-center gap-2 px-2">
@@ -163,8 +170,72 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const principalLinks = links.filter((link) => link.section === "principal");
-  const staffLinks = links.filter((link) => link.section === "staff");
+  const [permissions, setPermissions] = useState<string[]>(ALWAYS_ALLOWED);
+  const [loadingPermissions, setLoadingPermissions] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadPermissions() {
+      const email = getSessionEmail();
+
+      if (!email) {
+        if (mounted) {
+          setPermissions(ALWAYS_ALLOWED);
+          setLoadingPermissions(false);
+        }
+        return;
+      }
+
+      if (isOwner(email)) {
+        if (mounted) {
+          setPermissions(links.map((item) => item.href));
+          setLoadingPermissions(false);
+        }
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("user_permissions")
+        .select("permission")
+        .eq("email", email);
+
+      if (error) {
+        console.error("Erreur chargement permissions sidebar :", error);
+        if (mounted) {
+          setPermissions(ALWAYS_ALLOWED);
+          setLoadingPermissions(false);
+        }
+        return;
+      }
+
+      const dbPermissions = (data || [])
+        .map((item) => item.permission)
+        .filter(Boolean);
+
+      const merged = Array.from(new Set([...ALWAYS_ALLOWED, ...dbPermissions]));
+
+      if (mounted) {
+        setPermissions(merged);
+        setLoadingPermissions(false);
+      }
+    }
+
+    loadPermissions();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const visibleLinks = useMemo(() => {
+    return links.filter((link) => permissions.includes(link.href));
+  }, [permissions]);
+
+  const principalLinks = visibleLinks.filter(
+    (link) => link.section === "principal"
+  );
+  const staffLinks = visibleLinks.filter((link) => link.section === "staff");
 
   const handleLogout = async () => {
     try {
@@ -180,23 +251,23 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="hidden w-[320px] shrink-0 border-r border-yellow-400/10 bg-[#050505] xl:flex xl:flex-col">
+    <aside className="hidden w-[320px] shrink-0 border-r border-yellow-400/10 bg-black/35 backdrop-blur-xl xl:flex xl:flex-col">
       <div className="relative border-b border-yellow-400/10 px-5 py-5">
         <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-yellow-400/10 blur-3xl" />
 
-        <div className="relative overflow-hidden rounded-[28px] border border-yellow-400/15 bg-gradient-to-br from-[#121212] via-[#0a0a0a] to-black p-5 shadow-[0_14px_36px_rgba(0,0,0,0.35)]">
+        <div className="relative overflow-hidden rounded-[28px] border border-yellow-400/15 bg-gradient-to-br from-[#121212]/90 via-[#0a0a0a]/85 to-black/90 p-5 shadow-[0_14px_36px_rgba(0,0,0,0.35)] backdrop-blur-md">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,215,0,0.12),transparent_30%)]" />
 
           <div className="relative flex items-start gap-4">
             <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-yellow-400/20 bg-[#0b0b0b] p-1 shadow-[0_8px_20px_rgba(250,204,21,0.18)]">
-  <Image
-    src="/logo-moodlife.png"
-    alt="MoodLife"
-    width={56}
-    height={56}
-    className="h-full w-full object-contain"
-  />
-</div>
+              <Image
+                src="/logo-moodlife.png"
+                alt="MoodLife"
+                width={56}
+                height={56}
+                className="h-full w-full object-contain"
+              />
+            </div>
 
             <div className="min-w-0">
               <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/15 bg-yellow-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-yellow-300">
@@ -217,19 +288,25 @@ export default function Sidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-5">
-        <div className="space-y-7">
-          <SidebarSection
-            title="Navigation"
-            items={principalLinks}
-            pathname={pathname}
-          />
+        {loadingPermissions ? (
+          <div className="rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-4 text-sm text-white/55">
+            Chargement des accès...
+          </div>
+        ) : (
+          <div className="space-y-7">
+            <SidebarSection
+              title="Navigation"
+              items={principalLinks}
+              pathname={pathname}
+            />
 
-          <SidebarSection
-            title="Outils staff"
-            items={staffLinks}
-            pathname={pathname}
-          />
-        </div>
+            <SidebarSection
+              title="Outils staff"
+              items={staffLinks}
+              pathname={pathname}
+            />
+          </div>
+        )}
       </div>
 
       <div className="border-t border-yellow-400/10 p-4">
