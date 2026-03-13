@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import { Plus, Search, Shield, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getSessionEmail } from "@/lib/access";
@@ -15,6 +23,26 @@ type LicenseEntry = {
   created_by: string | null;
 };
 
+type FormState = {
+  license: string;
+  boutiqueId: string;
+  discordName: string;
+  email: string;
+};
+
+const INITIAL_FORM: FormState = {
+  license: "",
+  boutiqueId: "",
+  discordName: "",
+  email: "",
+};
+
+const MAIL_ACCESS_PERMISSIONS = new Set([
+  "Mail Access",
+  "Mail Accès",
+  "/dashboard/mail-acces",
+]);
+
 function normalize(text: string) {
   return text.toLowerCase().trim();
 }
@@ -27,19 +55,40 @@ function formatDate(date: string) {
   });
 }
 
-function StatCard({
-  label,
-  value,
-  description,
-  valueClassName = "text-yellow-300",
-}: {
+function canDeleteEntry(
+  entry: LicenseEntry,
+  sessionEmail: string,
+  canManageAll: boolean
+) {
+  if (canManageAll) return true;
+
+  const normalizedSessionEmail = sessionEmail.toLowerCase();
+
+  return Boolean(
+    (entry.created_by &&
+      normalizedSessionEmail &&
+      entry.created_by.toLowerCase() === normalizedSessionEmail) ||
+      (entry.email &&
+        normalizedSessionEmail &&
+        entry.email.toLowerCase() === normalizedSessionEmail)
+  );
+}
+
+type StatCardProps = {
   label: string;
   value: string | number;
   description: string;
   valueClassName?: string;
-}) {
+};
+
+const StatCard = memo(function StatCard({
+  label,
+  value,
+  description,
+  valueClassName = "text-yellow-300",
+}: StatCardProps) {
   return (
-    <div className="rounded-[24px] border border-yellow-400/15 bg-[#111111]/88 p-5 shadow-[0_10px_28px_rgba(0,0,0,0.30)] backdrop-blur-md">
+    <div className="rounded-[24px] border border-yellow-400/15 bg-[#111111]/88 p-5 shadow-[0_10px_28px_rgba(0,0,0,0.30)] backdrop-blur-sm">
       <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
         {label}
       </p>
@@ -47,186 +96,289 @@ function StatCard({
       <p className="mt-2 text-sm leading-6 text-white/60">{description}</p>
     </div>
   );
-}
+});
+
+type LicenseCardProps = {
+  entry: LicenseEntry;
+  canDelete: boolean;
+  onDelete: (entry: LicenseEntry) => void;
+  isDeleting: boolean;
+};
+
+const LicenseCard = memo(function LicenseCard({
+  entry,
+  canDelete,
+  onDelete,
+  isDeleting,
+}: LicenseCardProps) {
+  const formattedDate = useMemo(() => formatDate(entry.created_at), [entry.created_at]);
+
+  return (
+    <div className="rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)]">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
+              Licence
+            </p>
+            <p className="mt-1 break-all text-lg font-bold text-white">
+              {entry.license}
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/45">
+                ID boutique
+              </p>
+              <p className="mt-1 text-sm text-white/85">{entry.boutique_id}</p>
+            </div>
+
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/45">
+                Discord
+              </p>
+              <p className="mt-1 text-sm text-white/85">{entry.discord_name}</p>
+            </div>
+
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/45">
+                Mail
+              </p>
+              <p className="mt-1 text-sm text-white/85">
+                {entry.email || "Non renseigné"}
+              </p>
+            </div>
+          </div>
+
+          <p className="text-xs text-white/40">
+            Ajouté par : {entry.created_by || "inconnu"}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/65">
+            {formattedDate}
+          </span>
+
+          {canDelete ? (
+            <button
+              type="button"
+              onClick={() => onDelete(entry)}
+              disabled={isDeleting}
+              className="inline-flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Trash2 size={16} />
+              {isDeleting ? "Suppression..." : "Supprimer"}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export default function LicensePage() {
-  const [form, setForm] = useState({
-    license: "",
-    boutiqueId: "",
-    discordName: "",
-    email: "",
-  });
+  const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [search, setSearch] = useState("");
   const [entries, setEntries] = useState<LicenseEntry[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [message, setMessage] = useState("");
   const [sessionEmail, setSessionEmail] = useState("");
   const [canManageAll, setCanManageAll] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  async function loadEntries(
-    currentSessionEmail?: string,
-    currentCanManageAll?: boolean
-  ) {
-    try {
-      const email = (currentSessionEmail ?? sessionEmail ?? "").trim();
-      const canSeeAll = currentCanManageAll ?? canManageAll;
+  const normalizedSessionEmail = useMemo(
+    () => sessionEmail.trim().toLowerCase(),
+    [sessionEmail]
+  );
 
-      let query = supabase
-        .from("license_entries")
-        .select("*")
-        .order("created_at", { ascending: false });
+  const loadEntries = useCallback(
+    async (email: string, canSeeAll: boolean) => {
+      try {
+        let query = supabase
+          .from("license_entries")
+          .select("*")
+          .order("created_at", { ascending: false });
 
-      if (!canSeeAll) {
-        if (!email) {
-          setEntries([]);
-          setIsLoaded(true);
+        if (!canSeeAll) {
+          if (!email) {
+            setEntries([]);
+            setIsLoaded(true);
+            return;
+          }
+
+          query = query.or(`created_by.eq.${email},email.eq.${email}`);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error("Erreur chargement licences :", error);
+          setMessage("Impossible de charger les licences.");
           return;
         }
 
-        query = query.or(
-          `created_by.eq.${email},email.eq.${email}`
-        );
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
+        setEntries((data ?? []) as LicenseEntry[]);
+      } catch (error) {
         console.error("Erreur chargement licences :", error);
-        setMessage("Impossible de charger les licences.");
-        return;
+        setMessage("Erreur serveur.");
+      } finally {
+        setIsLoaded(true);
       }
-
-      setEntries((data || []) as LicenseEntry[]);
-    } catch (error) {
-      console.error("Erreur chargement licences :", error);
-      setMessage("Erreur serveur.");
-    } finally {
-      setIsLoaded(true);
-    }
-  }
+    },
+    []
+  );
 
   useEffect(() => {
-    const email = getSessionEmail() || "";
-    setSessionEmail(email);
-  }, []);
+    let cancelled = false;
 
-  useEffect(() => {
-    async function loadManagePermission() {
-      if (!sessionEmail) {
-        setCanManageAll(false);
-        await loadEntries("", false);
-        return;
+    async function initPage() {
+      try {
+        const email = (getSessionEmail() || "").trim();
+
+        if (cancelled) return;
+        setSessionEmail(email);
+
+        if (!email) {
+          setCanManageAll(false);
+          await loadEntries("", false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("user_permissions")
+          .select("permission")
+          .eq("email", email);
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error("Erreur permission mail access :", error);
+          setCanManageAll(false);
+          await loadEntries(email, false);
+          return;
+        }
+
+        const hasMailAccess = (data ?? []).some((item) =>
+          MAIL_ACCESS_PERMISSIONS.has(item.permission)
+        );
+
+        setCanManageAll(hasMailAccess);
+        await loadEntries(email, hasMailAccess);
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Erreur initialisation licences :", error);
+          setCanManageAll(false);
+          setMessage("Impossible de charger la page.");
+          setIsLoaded(true);
+        }
       }
-
-      const { data, error } = await supabase
-        .from("user_permissions")
-        .select("permission")
-        .eq("email", sessionEmail);
-
-      if (error) {
-        console.error("Erreur permission mail access :", error);
-        setCanManageAll(false);
-        await loadEntries(sessionEmail, false);
-        return;
-      }
-
-      const permissions = (data || []).map((item) => item.permission);
-      const hasMailAccess =
-        permissions.includes("Mail Access") ||
-        permissions.includes("Mail Accès") ||
-        permissions.includes("/dashboard/mail-acces");
-
-      setCanManageAll(hasMailAccess);
-      await loadEntries(sessionEmail, hasMailAccess);
     }
 
-    loadManagePermission();
-  }, [sessionEmail]);
+    initPage();
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    return () => {
+      cancelled = true;
+    };
+  }, [loadEntries]);
+
+  const handleChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-  }
+  }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setMessage("");
+  const handleSubmit = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      setMessage("");
 
-    if (
-      !form.license.trim() ||
-      !form.boutiqueId.trim() ||
-      !form.discordName.trim() ||
-      !form.email.trim()
-    ) {
-      setMessage("Merci de remplir les 4 champs.");
-      return;
-    }
+      const license = form.license.trim();
+      const boutiqueId = form.boutiqueId.trim();
+      const discordName = form.discordName.trim();
+      const email = form.email.trim().toLowerCase();
 
-    const payload = {
-      license: form.license.trim(),
-      boutique_id: form.boutiqueId.trim(),
-      discord_name: form.discordName.trim(),
-      email: form.email.trim().toLowerCase(),
-      created_by: sessionEmail || null,
-    };
+      if (!license || !boutiqueId || !discordName || !email) {
+        setMessage("Merci de remplir les 4 champs.");
+        return;
+      }
 
-    const { error } = await supabase.from("license_entries").insert([payload]);
+      setIsSubmitting(true);
 
-    if (error) {
-      console.error("Erreur ajout licence :", error);
-      setMessage("Impossible d’ajouter la licence.");
-      return;
-    }
+      try {
+        const payload = {
+          license,
+          boutique_id: boutiqueId,
+          discord_name: discordName,
+          email,
+          created_by: sessionEmail || null,
+        };
 
-    setForm({
-      license: "",
-      boutiqueId: "",
-      discordName: "",
-      email: "",
-    });
+        const { error } = await supabase.from("license_entries").insert([payload]);
 
-    setMessage("Licence ajoutée avec succès.");
-    await loadEntries();
-  }
+        if (error) {
+          console.error("Erreur ajout licence :", error);
+          setMessage("Impossible d’ajouter la licence.");
+          return;
+        }
 
-  async function handleDelete(entry: LicenseEntry) {
-    const canDelete =
-      canManageAll ||
-      (entry.created_by &&
-        sessionEmail &&
-        entry.created_by.toLowerCase() === sessionEmail.toLowerCase()) ||
-      (entry.email &&
-        sessionEmail &&
-        entry.email.toLowerCase() === sessionEmail.toLowerCase());
+        setForm(INITIAL_FORM);
+        setMessage("Licence ajoutée avec succès.");
+        await loadEntries(sessionEmail, canManageAll);
+      } catch (error) {
+        console.error("Erreur ajout licence :", error);
+        setMessage("Erreur serveur pendant l’ajout.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [form, sessionEmail, canManageAll, loadEntries]
+  );
 
-    if (!canDelete) {
-      setMessage("Tu ne peux supprimer que tes propres licences.");
-      return;
-    }
+  const handleDelete = useCallback(
+    async (entry: LicenseEntry) => {
+      const allowed = canDeleteEntry(entry, normalizedSessionEmail, canManageAll);
 
-    const { error } = await supabase
-      .from("license_entries")
-      .delete()
-      .eq("id", entry.id);
+      if (!allowed) {
+        setMessage("Tu ne peux supprimer que tes propres licences.");
+        return;
+      }
 
-    if (error) {
-      console.error("Erreur suppression licence :", error);
-      setMessage("Impossible de supprimer la licence.");
-      return;
-    }
+      setDeletingId(entry.id);
 
-    setMessage("Licence supprimée.");
-    await loadEntries();
-  }
+      try {
+        const { error } = await supabase
+          .from("license_entries")
+          .delete()
+          .eq("id", entry.id);
+
+        if (error) {
+          console.error("Erreur suppression licence :", error);
+          setMessage("Impossible de supprimer la licence.");
+          return;
+        }
+
+        setEntries((prev) => prev.filter((item) => item.id !== entry.id));
+        setMessage("Licence supprimée.");
+      } catch (error) {
+        console.error("Erreur suppression licence :", error);
+        setMessage("Erreur serveur pendant la suppression.");
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [canManageAll, normalizedSessionEmail]
+  );
 
   const filteredEntries = useMemo(() => {
-    if (!search.trim()) return entries;
-
     const q = normalize(search);
+
+    if (!q) return entries;
 
     return entries.filter((entry) =>
       normalize(
-        `${entry.license} ${entry.boutique_id} ${entry.discord_name} ${entry.email || ""}`
+        `${entry.license} ${entry.boutique_id} ${entry.discord_name} ${entry.email ?? ""}`
       ).includes(q)
     );
   }, [entries, search]);
@@ -238,6 +390,13 @@ export default function LicensePage() {
       loaded: isLoaded ? "Synchronisée" : "Chargement",
     };
   }, [entries.length, filteredEntries.length, isLoaded]);
+
+  const mappedEntries = useMemo(() => {
+    return filteredEntries.map((entry) => ({
+      entry,
+      canDelete: canDeleteEntry(entry, normalizedSessionEmail, canManageAll),
+    }));
+  }, [filteredEntries, normalizedSessionEmail, canManageAll]);
 
   return (
     <div className="space-y-6">
@@ -286,7 +445,7 @@ export default function LicensePage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-        <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
+        <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-yellow-300">
               <Plus className="h-5 w-5" />
@@ -365,18 +524,19 @@ export default function LicensePage() {
 
             <button
               type="submit"
-              className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 font-bold text-black transition hover:brightness-105"
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 font-bold text-black transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <Plus size={16} />
-              Enregistrer la licence
+              {isSubmitting ? "Enregistrement..." : "Enregistrer la licence"}
             </button>
           </form>
 
-          {message && (
+          {message ? (
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/80">
               {message}
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="rounded-[30px] border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
@@ -407,92 +567,20 @@ export default function LicensePage() {
               <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
                 Chargement...
               </div>
-            ) : filteredEntries.length === 0 ? (
+            ) : mappedEntries.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
                 Aucune licence trouvée.
               </div>
             ) : (
-              filteredEntries.map((entry) => {
-                const canDelete =
-                  canManageAll ||
-                  (entry.created_by &&
-                    sessionEmail &&
-                    entry.created_by.toLowerCase() ===
-                      sessionEmail.toLowerCase()) ||
-                  (entry.email &&
-                    sessionEmail &&
-                    entry.email.toLowerCase() === sessionEmail.toLowerCase());
-
-                return (
-                  <div
-                    key={entry.id}
-                    className="rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)]"
-                  >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-                            Licence
-                          </p>
-                          <p className="mt-1 break-all text-lg font-bold text-white">
-                            {entry.license}
-                          </p>
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div>
-                            <p className="text-xs uppercase tracking-[0.2em] text-white/45">
-                              ID boutique
-                            </p>
-                            <p className="mt-1 text-sm text-white/85">
-                              {entry.boutique_id}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-xs uppercase tracking-[0.2em] text-white/45">
-                              Discord
-                            </p>
-                            <p className="mt-1 text-sm text-white/85">
-                              {entry.discord_name}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-xs uppercase tracking-[0.2em] text-white/45">
-                              Mail
-                            </p>
-                            <p className="mt-1 text-sm text-white/85">
-                              {entry.email || "Non renseigné"}
-                            </p>
-                          </div>
-                        </div>
-
-                        <p className="text-xs text-white/40">
-                          Ajouté par : {entry.created_by || "inconnu"}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/65">
-                          {formatDate(entry.created_at)}
-                        </span>
-
-                        {canDelete && (
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(entry)}
-                            className="inline-flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15"
-                          >
-                            <Trash2 size={16} />
-                            Supprimer
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
+              mappedEntries.map(({ entry, canDelete }) => (
+                <LicenseCard
+                  key={entry.id}
+                  entry={entry}
+                  canDelete={canDelete}
+                  onDelete={handleDelete}
+                  isDeleting={deletingId === entry.id}
+                />
+              ))
             )}
           </div>
         </div>

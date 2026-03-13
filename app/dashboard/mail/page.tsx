@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
+import {
+  ExternalLink,
   Mail,
   Plus,
   Search,
-  ExternalLink,
   ShieldAlert,
   Trash2,
 } from "lucide-react";
@@ -22,6 +29,9 @@ type MailEntry = {
 const GOOGLE_FORM_URL =
   "https://docs.google.com/forms/d/1-do2eDUT2NaGm6M2Dfeo3emzioXC9_ZUI1AR73dPf6Q/edit?ts=6997074b#response=ACYDBNjJJSdt9HPUf-cnAgsjnAJcB3y5-tdsSEcTZ-pYDCKpuOjp4irIDPPe0Ua4E_gSAsU";
 
+const MAIL_ACCESS_PERMISSION = "/dashboard/mail-acces";
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function normalize(text: string) {
   return text.toLowerCase().trim();
 }
@@ -34,19 +44,35 @@ function formatDate(date: string) {
   });
 }
 
-function StatCard({
-  title,
-  value,
-  valueClassName = "text-yellow-300",
-  description,
-  glowClassName = "from-yellow-500/20 via-yellow-300/10 to-transparent",
-}: {
+function canDeleteEntry(
+  entry: MailEntry,
+  sessionEmail: string,
+  canManageAll: boolean
+) {
+  if (canManageAll) return true;
+  if (!sessionEmail) return false;
+
+  return (
+    !!entry.created_by &&
+    entry.created_by.toLowerCase() === sessionEmail.toLowerCase()
+  );
+}
+
+type StatCardProps = {
   title: string;
   value: string | number;
   valueClassName?: string;
   description: string;
   glowClassName?: string;
-}) {
+};
+
+const StatCard = memo(function StatCard({
+  title,
+  value,
+  valueClassName = "text-yellow-300",
+  description,
+  glowClassName = "from-yellow-500/20 via-yellow-300/10 to-transparent",
+}: StatCardProps) {
   return (
     <div className="group relative overflow-hidden rounded-[24px] border border-yellow-400/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.30)] backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-yellow-300/20">
       <div
@@ -61,7 +87,57 @@ function StatCard({
       </div>
     </div>
   );
-}
+});
+
+type MailCardProps = {
+  entry: MailEntry;
+  canDelete: boolean;
+  isDeleting: boolean;
+  onDelete: (entry: MailEntry) => void;
+};
+
+const MailCard = memo(function MailCard({
+  entry,
+  canDelete,
+  isDeleting,
+  onDelete,
+}: MailCardProps) {
+  const formattedDate = useMemo(() => formatDate(entry.created_at), [entry.created_at]);
+
+  return (
+    <div className="group relative overflow-hidden rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)] transition duration-300 hover:border-yellow-300/20 hover:bg-[#171717]/95">
+      <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-yellow-300 via-yellow-400 to-amber-500 opacity-80" />
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/10 p-3 text-yellow-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <Mail className="h-5 w-5" />
+          </div>
+
+          <div>
+            <p className="text-lg font-bold text-white">{entry.email}</p>
+            <p className="mt-1 text-xs text-white/45">Ajouté le {formattedDate}</p>
+            <p className="mt-1 text-xs text-white/40">
+              Ajouté par : {entry.created_by || "inconnu"}
+            </p>
+          </div>
+        </div>
+
+        {canDelete ? (
+          <button
+            type="button"
+            onClick={() => onDelete(entry)}
+            disabled={isDeleting}
+            className="inline-flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Trash2 size={16} />
+            {isDeleting ? "Suppression..." : "Supprimer"}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+});
 
 export default function MailPage() {
   const [email, setEmail] = useState("");
@@ -71,8 +147,15 @@ export default function MailPage() {
   const [message, setMessage] = useState("");
   const [sessionEmail, setSessionEmail] = useState("");
   const [canManageAll, setCanManageAll] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  async function loadEntries() {
+  const normalizedSessionEmail = useMemo(
+    () => sessionEmail.trim().toLowerCase(),
+    [sessionEmail]
+  );
+
+  const loadEntries = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("suicide_rp_mails")
@@ -85,131 +168,190 @@ export default function MailPage() {
         return;
       }
 
-      setEntries((data || []) as MailEntry[]);
+      setEntries((data ?? []) as MailEntry[]);
     } catch (error) {
       console.error("Erreur chargement mails :", error);
       setMessage("Erreur serveur.");
     } finally {
       setIsLoaded(true);
     }
-  }
-
-  useEffect(() => {
-    loadEntries();
   }, []);
 
   useEffect(() => {
-    const current = getSessionEmail() || "";
-    setSessionEmail(current);
-  }, []);
+    let cancelled = false;
 
-  useEffect(() => {
-    async function loadManagePermission() {
-      if (!sessionEmail) return;
+    async function initPage() {
+      try {
+        const currentSessionEmail = (getSessionEmail() || "").trim();
 
-      const { data, error } = await supabase
-        .from("user_permissions")
-        .select("permission")
-        .eq("email", sessionEmail);
+        if (cancelled) return;
+        setSessionEmail(currentSessionEmail);
 
-      if (error) {
-        console.error("Erreur permission mail-acces :", error);
+        if (!currentSessionEmail) {
+          setCanManageAll(false);
+          await loadEntries();
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("user_permissions")
+          .select("permission")
+          .eq("email", currentSessionEmail);
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error("Erreur permission mail-acces :", error);
+          setCanManageAll(false);
+          await loadEntries();
+          return;
+        }
+
+        const hasManageAll = (data ?? []).some(
+          (item) => item.permission === MAIL_ACCESS_PERMISSION
+        );
+
+        setCanManageAll(hasManageAll);
+        await loadEntries();
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Erreur initialisation mails :", error);
+          setMessage("Impossible de charger la page.");
+          setIsLoaded(true);
+        }
+      }
+    }
+
+    initPage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadEntries]);
+
+  const handleSubmit = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      setMessage("");
+
+      const cleanEmail = email.trim().toLowerCase();
+
+      if (!cleanEmail) {
+        setMessage("Merci de renseigner une adresse mail.");
         return;
       }
 
-      const permissions = (data || []).map((item) => item.permission);
-      setCanManageAll(permissions.includes("/dashboard/mail-acces"));
-    }
-
-    loadManagePermission();
-  }, [sessionEmail]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setMessage("");
-
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (!cleanEmail) {
-      setMessage("Merci de renseigner une adresse mail.");
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(cleanEmail)) {
-      setMessage("Merci d’entrer une adresse mail valide.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("suicide_rp_mails")
-      .insert([{ email: cleanEmail, created_by: sessionEmail || null }]);
-
-    if (error) {
-      console.error("Erreur ajout mail :", error);
-
-      if (error.message?.toLowerCase().includes("duplicate")) {
-        setMessage("Cette adresse mail est déjà enregistrée.");
-      } else {
-        setMessage("Impossible d’enregistrer cette adresse mail.");
+      if (!EMAIL_REGEX.test(cleanEmail)) {
+        setMessage("Merci d’entrer une adresse mail valide.");
+        return;
       }
-      return;
-    }
 
-    setEmail("");
-    setMessage("Adresse mail enregistrée avec succès.");
-    await loadEntries();
-  }
+      setIsSubmitting(true);
 
-  async function handleDelete(entry: MailEntry) {
-    const canDelete =
-      canManageAll ||
-      (entry.created_by &&
-        sessionEmail &&
-        entry.created_by.toLowerCase() === sessionEmail.toLowerCase());
+      try {
+        const payload = {
+          email: cleanEmail,
+          created_by: sessionEmail || null,
+        };
 
-    if (!canDelete) {
-      setMessage("Tu ne peux supprimer que les mails que tu as ajoutés.");
-      return;
-    }
+        const { data, error } = await supabase
+          .from("suicide_rp_mails")
+          .insert([payload])
+          .select("*")
+          .single();
 
-    const { error } = await supabase
-      .from("suicide_rp_mails")
-      .delete()
-      .eq("id", entry.id);
+        if (error) {
+          console.error("Erreur ajout mail :", error);
 
-    if (error) {
-      console.error("Erreur suppression mail :", error);
-      setMessage("Impossible de supprimer cette adresse mail.");
-      return;
-    }
+          if (error.message?.toLowerCase().includes("duplicate")) {
+            setMessage("Cette adresse mail est déjà enregistrée.");
+          } else {
+            setMessage("Impossible d’enregistrer cette adresse mail.");
+          }
+          return;
+        }
 
-    setMessage("Adresse mail supprimée. L’accès au Google Form est retiré.");
-    await loadEntries();
-  }
+        setEntries((prev) => [data as MailEntry, ...prev]);
+        setEmail("");
+        setMessage("Adresse mail enregistrée avec succès.");
+      } catch (error) {
+        console.error("Erreur ajout mail :", error);
+        setMessage("Erreur serveur pendant l’enregistrement.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [email, sessionEmail]
+  );
+
+  const handleDelete = useCallback(
+    async (entry: MailEntry) => {
+      const canDelete = canDeleteEntry(entry, normalizedSessionEmail, canManageAll);
+
+      if (!canDelete) {
+        setMessage("Tu ne peux supprimer que les mails que tu as ajoutés.");
+        return;
+      }
+
+      setDeletingId(entry.id);
+
+      try {
+        const { error } = await supabase
+          .from("suicide_rp_mails")
+          .delete()
+          .eq("id", entry.id);
+
+        if (error) {
+          console.error("Erreur suppression mail :", error);
+          setMessage("Impossible de supprimer cette adresse mail.");
+          return;
+        }
+
+        setEntries((prev) => prev.filter((item) => item.id !== entry.id));
+        setMessage("Adresse mail supprimée. L’accès au Google Form est retiré.");
+      } catch (error) {
+        console.error("Erreur suppression mail :", error);
+        setMessage("Erreur serveur pendant la suppression.");
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [canManageAll, normalizedSessionEmail]
+  );
+
+  const normalizedSearch = useMemo(() => normalize(search), [search]);
 
   const filteredEntries = useMemo(() => {
-    if (!search.trim()) return entries;
+    if (!normalizedSearch) return entries;
 
     return entries.filter((entry) =>
-      normalize(entry.email).includes(normalize(search))
+      normalize(entry.email).includes(normalizedSearch)
     );
-  }, [entries, search]);
+  }, [entries, normalizedSearch]);
 
   const hasAccess = useMemo(() => {
-  if (!sessionEmail) return false;
-  return entries.some(
-    (entry) => entry.email.toLowerCase() === sessionEmail.toLowerCase()
-  );
-}, [entries, sessionEmail]);
+    if (!normalizedSessionEmail) return false;
 
-  const stats = useMemo(() => {
-    return {
+    return entries.some(
+      (entry) => entry.email.toLowerCase() === normalizedSessionEmail
+    );
+  }, [entries, normalizedSessionEmail]);
+
+  const stats = useMemo(
+    () => ({
       total: entries.length,
       visible: filteredEntries.length,
       access: hasAccess ? "Actif" : "Bloqué",
-    };
-  }, [entries.length, filteredEntries.length, hasAccess]);
+    }),
+    [entries.length, filteredEntries.length, hasAccess]
+  );
+
+  const mappedEntries = useMemo(() => {
+    return filteredEntries.map((entry) => ({
+      entry,
+      canDelete: canDeleteEntry(entry, normalizedSessionEmail, canManageAll),
+    }));
+  }, [filteredEntries, normalizedSessionEmail, canManageAll]);
 
   return (
     <div className="space-y-6">
@@ -279,7 +421,7 @@ export default function MailPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <div className="relative overflow-hidden rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
+        <div className="relative overflow-hidden rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm">
           <div className="absolute right-0 top-0 h-36 w-36 rounded-full bg-yellow-400/10 blur-3xl" />
           <div className="relative mb-5">
             <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
@@ -311,18 +453,19 @@ export default function MailPage() {
 
             <button
               type="submit"
-              className="inline-flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] px-5 py-3 font-bold text-black shadow-[0_12px_24px_rgba(250,204,21,0.18)] transition hover:-translate-y-0.5 hover:brightness-105"
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] px-5 py-3 font-bold text-black shadow-[0_12px_24px_rgba(250,204,21,0.18)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <Plus size={16} />
-              Enregistrer le mail
+              {isSubmitting ? "Enregistrement..." : "Enregistrer le mail"}
             </button>
           </form>
 
-          {message && (
+          {message ? (
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/80">
               {message}
             </div>
-          )}
+          ) : null}
 
           {hasAccess ? (
             <a
@@ -345,14 +488,14 @@ export default function MailPage() {
             </button>
           )}
 
-          {!hasAccess && (
+          {!hasAccess ? (
             <p className="mt-3 text-xs leading-5 text-yellow-200/75">
               Ajoute au moins une adresse mail pour débloquer l’accès au formulaire.
             </p>
-          )}
+          ) : null}
         </div>
 
-        <div className="relative overflow-hidden rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md">
+        <div className="relative overflow-hidden rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm">
           <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-amber-300/10 blur-3xl" />
 
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -382,58 +525,20 @@ export default function MailPage() {
               <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
                 Chargement...
               </div>
-            ) : filteredEntries.length === 0 ? (
+            ) : mappedEntries.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
                 Aucun mail enregistré.
               </div>
             ) : (
-              filteredEntries.map((entry) => {
-                const canDelete =
-                  canManageAll ||
-                  (entry.created_by &&
-                    sessionEmail &&
-                    entry.created_by.toLowerCase() ===
-                      sessionEmail.toLowerCase());
-
-                return (
-                  <div
-                    key={entry.id}
-                    className="group relative overflow-hidden rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)] transition duration-300 hover:border-yellow-300/20 hover:bg-[#171717]/95"
-                  >
-                    <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-yellow-300 via-yellow-400 to-amber-500 opacity-80" />
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/10 p-3 text-yellow-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                          <Mail className="h-5 w-5" />
-                        </div>
-
-                        <div>
-                          <p className="text-lg font-bold text-white">
-                            {entry.email}
-                          </p>
-                          <p className="mt-1 text-xs text-white/45">
-                            Ajouté le {formatDate(entry.created_at)}
-                          </p>
-                          <p className="mt-1 text-xs text-white/40">
-                            Ajouté par : {entry.created_by || "inconnu"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {canDelete && (
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(entry)}
-                          className="inline-flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15"
-                        >
-                          <Trash2 size={16} />
-                          Supprimer
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
+              mappedEntries.map(({ entry, canDelete }) => (
+                <MailCard
+                  key={entry.id}
+                  entry={entry}
+                  canDelete={canDelete}
+                  isDeleting={deletingId === entry.id}
+                  onDelete={handleDelete}
+                />
+              ))
             )}
           </div>
         </div>
