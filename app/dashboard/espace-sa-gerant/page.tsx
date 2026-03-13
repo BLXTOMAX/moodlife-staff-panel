@@ -1,22 +1,56 @@
 "use client";
 
-import { Lock, Shield, Sparkles, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { getSessionEmail } from "@/lib/access";
+import { Lock, Clock3, TriangleAlert, ShieldBan } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getSessionEmail } from "@/lib/access";
+
+// Adapte ces imports selon tes vrais chemins de fichiers
+import HeuresStaffPage from "@/app/dashboard/heures-staff/page";
+import RemonteesPage from "@/app/dashboard/remontees/page";
+import BLStaffPage from "@/app/dashboard/bl-staff/page";
 
 const ESPACE_SA_GERANT_PERMISSION = "/dashboard/espace-sa-gerant";
 const EMPTY_MESSAGE = "";
 
+type TabId = "heures" | "remontees" | "bl";
+
 function normalize(text: string) {
   return text.toLowerCase().trim();
 }
+
+const tabs: Array<{
+  id: TabId;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+}> = [
+  {
+    id: "heures",
+    label: "Heures / Reports",
+    icon: Clock3,
+    description: "Gestion des heures, reports, semaines et payes.",
+  },
+  {
+    id: "remontees",
+    label: "Remontées staff",
+    icon: TriangleAlert,
+    description: "Suivi des remontées positives et négatives.",
+  },
+  {
+    id: "bl",
+    label: "BL staff",
+    icon: ShieldBan,
+    description: "Blacklist staff et historique des ajouts.",
+  },
+];
 
 export default function EspaceSAGerantPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [canViewPage, setCanViewPage] = useState(false);
   const [sessionEmail, setSessionEmail] = useState(EMPTY_MESSAGE);
   const [message, setMessage] = useState(EMPTY_MESSAGE);
+  const [activeTab, setActiveTab] = useState<TabId>("heures");
 
   const normalizedSessionEmail = useMemo(
     () => normalize(sessionEmail),
@@ -64,6 +98,7 @@ export default function EspaceSAGerantPage() {
         );
 
         if (ignore) return;
+
         setCanViewPage(hasGerantAccess);
 
         if (!hasGerantAccess) {
@@ -85,6 +120,8 @@ export default function EspaceSAGerantPage() {
       ignore = true;
     };
   }, []);
+
+  const activeTabMeta = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
 
   if (!isLoaded) {
     return (
@@ -141,132 +178,79 @@ export default function EspaceSAGerantPage() {
           <div className="mt-4 h-px w-44 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
 
           <p className="mt-4 max-w-3xl text-sm leading-7 text-white/82">
-            Bienvenue dans l’espace réservé aux gérants staff.
+            Zone réservée à la gestion gérant staff avec tes 3 onglets internes.
+          </p>
+
+          <p className="mt-3 text-xs text-white/45">
+            Session : {normalizedSessionEmail || "inconnue"}
           </p>
         </div>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="group relative overflow-hidden rounded-[24px] border border-yellow-400/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.30)] backdrop-blur-md">
-          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-yellow-500/20 via-yellow-300/10 to-transparent opacity-80 blur-2xl" />
-          <div className="relative">
-            <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-              Statut
-            </p>
-            <p className="mt-3 text-3xl font-black text-emerald-300">Actif</p>
-            <p className="mt-2 text-sm leading-6 text-white/60">
-              Ton accès à l’espace gérant staff est bien autorisé.
-            </p>
-          </div>
+      <section className="rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+        <div className="flex flex-col gap-3 lg:flex-row">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex flex-1 items-start gap-3 rounded-[22px] border px-4 py-4 text-left transition ${
+                  isActive
+                    ? "border-yellow-400/30 bg-yellow-400/10 shadow-[0_10px_24px_rgba(250,204,21,0.10)]"
+                    : "border-white/8 bg-black/20 hover:border-yellow-400/20 hover:bg-black/30"
+                }`}
+              >
+                <div
+                  className={`rounded-2xl p-3 ${
+                    isActive
+                      ? "bg-yellow-400/15 text-yellow-300"
+                      : "bg-white/5 text-white/65"
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                </div>
+
+                <div className="min-w-0">
+                  <p
+                    className={`text-sm font-bold ${
+                      isActive ? "text-yellow-200" : "text-white"
+                    }`}
+                  >
+                    {tab.label}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-white/55">
+                    {tab.description}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
         </div>
+      </section>
 
-        <div className="group relative overflow-hidden rounded-[24px] border border-yellow-400/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.30)] backdrop-blur-md">
-          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-white/10 via-yellow-200/5 to-transparent opacity-80 blur-2xl" />
-          <div className="relative">
-            <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-              Session
-            </p>
-            <p className="mt-3 truncate text-lg font-black text-white">
-              {normalizedSessionEmail || "Inconnue"}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-white/60">
-              Email actuellement utilisé pour vérifier les permissions.
-            </p>
-          </div>
-        </div>
-
-        <div className="group relative overflow-hidden rounded-[24px] border border-yellow-400/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.30)] backdrop-blur-md">
-          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-yellow-400/20 via-amber-300/10 to-transparent opacity-80 blur-2xl" />
-          <div className="relative">
-            <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-              Zone
-            </p>
-            <p className="mt-3 text-3xl font-black text-yellow-200">SA GS</p>
-            <p className="mt-2 text-sm leading-6 text-white/60">
-              Espace distinct de la page Mail Suicide RP.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm xl:col-span-2">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/10 p-3 text-yellow-300">
-              <Shield className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-                Zone protégée
-              </p>
-              <h2 className="mt-1 text-2xl font-black text-white">
-                Tableau de bord gérant staff
-              </h2>
-            </div>
-          </div>
-
-          <p className="mt-5 text-sm leading-7 text-white/70">
-            Cette page est maintenant indépendante du module des mails. Tu peux
-            y ajouter ensuite ton vrai contenu SA / Gérant-Staff sans risquer
-            d’afficher la liste des mails par erreur.
+      <section className="rounded-[30px] border border-yellow-400/10 bg-black/10">
+        <div className="border-b border-yellow-400/10 px-6 py-4">
+          <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/70">
+            Onglet actif
           </p>
-
-          <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
-            <p className="text-sm font-semibold text-white">
-              Page corrigée avec succès.
-            </p>
-            <p className="mt-2 text-sm leading-6 text-white/60">
-              La route <span className="font-semibold text-yellow-200">/dashboard/espace-sa-gerant</span>{" "}
-              affiche désormais une vraie page dédiée.
-            </p>
-          </div>
+          <h2 className="mt-1 text-2xl font-black text-white">
+            {activeTabMeta.label}
+          </h2>
+          <p className="mt-2 text-sm text-white/60">
+            {activeTabMeta.description}
+          </p>
         </div>
 
-        <div className="rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/10 p-3 text-yellow-300">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-                Infos
-              </p>
-              <h2 className="mt-1 text-xl font-black text-white">
-                Accès validé
-              </h2>
-            </div>
-          </div>
-
-          <div className="mt-5 space-y-4">
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <div className="flex items-center gap-3">
-                <Users className="h-4 w-4 text-yellow-300" />
-                <p className="text-sm text-white/80">
-                  Réservé aux personnes autorisées
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <div className="flex items-center gap-3">
-                <Shield className="h-4 w-4 text-yellow-300" />
-                <p className="text-sm text-white/80">
-                  Vérification par permission dashboard
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <div className="flex items-center gap-3">
-                <Sparkles className="h-4 w-4 text-yellow-300" />
-                <p className="text-sm text-white/80">
-                  Plus aucun affichage du module mail ici
-                </p>
-              </div>
-            </div>
-          </div>
+        <div>
+          {activeTab === "heures" ? <HeuresStaffPage /> : null}
+          {activeTab === "remontees" ? <RemonteesPage /> : null}
+          {activeTab === "bl" ? <BLStaffPage /> : null}
         </div>
-      </div>
+      </section>
     </div>
   );
 }
