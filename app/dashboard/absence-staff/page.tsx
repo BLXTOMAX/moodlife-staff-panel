@@ -1,7 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import { supabase } from "@/lib/supabase";
+
+type AbsenceStatus = "En attente" | "Validée" | "Refusée";
 
 type Absence = {
   id: string;
@@ -9,7 +19,17 @@ type Absence = {
   reason: string;
   startDate: string;
   endDate: string;
-  status: "En attente" | "Validée" | "Refusée";
+  status: AbsenceStatus;
+};
+
+type AbsenceRow = {
+  id: string;
+  staff_name: string;
+  reason: string;
+  start_date: string;
+  end_date: string;
+  status: AbsenceStatus;
+  created_at?: string;
 };
 
 type HeuresStaffRow = {
@@ -25,6 +45,13 @@ type HeuresStaffRow = {
   dimanche: string;
 };
 
+type FormState = {
+  staffName: string;
+  reason: string;
+  startDate: string;
+  endDate: string;
+};
+
 const SESSION_STORAGE_KEY = "moodlife-session-email";
 
 const DAY_FIELD_BY_INDEX = [
@@ -36,6 +63,13 @@ const DAY_FIELD_BY_INDEX = [
   "vendredi",
   "samedi",
 ] as const;
+
+const INITIAL_FORM: FormState = {
+  staffName: "",
+  reason: "",
+  startDate: "",
+  endDate: "",
+};
 
 function formatDate(date: string) {
   if (!date) return "--";
@@ -124,7 +158,18 @@ function findWeekLabelForDate(weekLabels: string[], targetDate: Date) {
   return null;
 }
 
-function getStatusClasses(status: Absence["status"]) {
+function mapAbsenceRow(row: AbsenceRow): Absence {
+  return {
+    id: row.id,
+    staffName: row.staff_name,
+    reason: row.reason,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    status: row.status,
+  };
+}
+
+function getStatusClasses(status: AbsenceStatus) {
   switch (status) {
     case "Validée":
       return "border-emerald-400/25 bg-emerald-500/15 text-emerald-200 shadow-[0_0_0_1px_rgba(16,185,129,0.08)]";
@@ -135,7 +180,7 @@ function getStatusClasses(status: Absence["status"]) {
   }
 }
 
-function getStatusDot(status: Absence["status"]) {
+function getStatusDot(status: AbsenceStatus) {
   switch (status) {
     case "Validée":
       return "bg-emerald-300";
@@ -146,7 +191,84 @@ function getStatusDot(status: Absence["status"]) {
   }
 }
 
-function StatCard({
+async function syncAbsenceToHeures(absence: Absence, mode: "apply" | "remove") {
+  const { data: heuresRows, error } = await supabase
+    .from("heures_staff")
+    .select(
+      "id, semaine, staff, lundi, mardi, mercredi, jeudi, vendredi, samedi, dimanche"
+    );
+
+  if (error) {
+    console.error("Erreur lecture heures_staff :", error);
+    return;
+  }
+
+  const allRows = (heuresRows || []) as HeuresStaffRow[];
+
+  const matchingStaffRows = allRows.filter(
+    (row) =>
+      normalizeStaffName(row.staff) === normalizeStaffName(absence.staffName)
+  );
+
+  if (matchingStaffRows.length === 0) {
+    console.warn(
+      "Aucune ligne heures_staff trouvée pour le staff :",
+      absence.staffName
+    );
+    return;
+  }
+
+  const distinctWeekLabels = Array.from(
+    new Set(
+      matchingStaffRows.map((row) => (row.semaine || "").trim()).filter(Boolean)
+    )
+  );
+
+  const rowByWeekLabel = new Map<string, HeuresStaffRow>();
+  for (const row of matchingStaffRows) {
+    rowByWeekLabel.set((row.semaine || "").trim(), row);
+  }
+
+  const updatesByRowId = new Map<number, Partial<HeuresStaffRow>>();
+
+  for (const date of eachDateBetween(absence.startDate, absence.endDate)) {
+    const weekLabel = findWeekLabelForDate(distinctWeekLabels, date);
+    if (!weekLabel) continue;
+
+    const rowForWeek = rowByWeekLabel.get(weekLabel);
+    if (!rowForWeek) continue;
+
+    const dayField = DAY_FIELD_BY_INDEX[date.getDay()];
+    const currentValue = String(rowForWeek[dayField] || "").trim().toLowerCase();
+
+    if (mode === "apply") {
+      if (currentValue === "imprévu") continue;
+      const currentUpdate = updatesByRowId.get(rowForWeek.id) || {};
+      currentUpdate[dayField] = "Imprévu";
+      updatesByRowId.set(rowForWeek.id, currentUpdate);
+    } else {
+      if (currentValue !== "imprévu") continue;
+      const currentUpdate = updatesByRowId.get(rowForWeek.id) || {};
+      currentUpdate[dayField] = "";
+      updatesByRowId.set(rowForWeek.id, currentUpdate);
+    }
+  }
+
+  await Promise.all(
+    Array.from(updatesByRowId.entries()).map(async ([rowId, fieldsToUpdate]) => {
+      const { error: updateError } = await supabase
+        .from("heures_staff")
+        .update(fieldsToUpdate)
+        .eq("id", rowId);
+
+      if (updateError) {
+        console.error(`Erreur mise à jour heures_staff ligne ${rowId} :`, updateError);
+      }
+    })
+  );
+}
+
+const StatCard = memo(function StatCard({
   title,
   value,
   valueClassName = "text-yellow-300",
@@ -173,50 +295,143 @@ function StatCard({
       </div>
     </div>
   );
-}
+});
+
+const AbsenceCard = memo(function AbsenceCard({
+  absence,
+  canValidateAbsences,
+  canDeleteAbsences,
+  onValidate,
+  onRefuse,
+  onDelete,
+  isUpdating,
+  isDeleting,
+}: {
+  absence: Absence;
+  canValidateAbsences: boolean;
+  canDeleteAbsences: boolean;
+  onValidate: (absence: Absence) => void;
+  onRefuse: (absence: Absence) => void;
+  onDelete: (absence: Absence) => void;
+  isUpdating: boolean;
+  isDeleting: boolean;
+}) {
+  return (
+    <div className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.02))] p-5 shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition duration-300 hover:-translate-y-0.5 hover:border-yellow-300/20">
+      <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-yellow-300 via-yellow-400 to-amber-500 opacity-80" />
+      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-r from-yellow-400/5 via-fuchsia-400/5 to-cyan-400/5 opacity-0 transition group-hover:opacity-100" />
+
+      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-lg font-bold text-white">{absence.staffName}</p>
+            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/50">
+              Staff
+            </span>
+          </div>
+
+          <p className="mt-2 text-sm leading-6 text-white/70">{absence.reason}</p>
+
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full border border-cyan-300/15 bg-cyan-400/10 px-3 py-1 text-cyan-100">
+              Du {formatDate(absence.startDate)}
+            </span>
+            <span className="rounded-full border border-fuchsia-300/15 bg-fuchsia-400/10 px-3 py-1 text-fuchsia-100">
+              Au {formatDate(absence.endDate)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-end gap-2">
+          <span
+            className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold ${getStatusClasses(
+              absence.status
+            )}`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${getStatusDot(absence.status)}`}
+            />
+            {absence.status}
+          </span>
+
+          {canValidateAbsences && absence.status === "En attente" ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => onValidate(absence)}
+                disabled={isUpdating}
+                className="rounded-xl border border-emerald-400/15 bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isUpdating ? "..." : "Valider"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onRefuse(absence)}
+                disabled={isUpdating}
+                className="rounded-xl border border-rose-400/15 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-200 transition hover:bg-rose-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isUpdating ? "..." : "Refuser"}
+              </button>
+            </div>
+          ) : null}
+
+          {canDeleteAbsences ? (
+            <button
+              type="button"
+              onClick={() => onDelete(absence)}
+              disabled={isDeleting}
+              className="rounded-xl border border-red-400/15 bg-red-500/15 px-3 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isDeleting ? "Suppression..." : "Supprimer"}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export default function AbsenceStaffPage() {
   const [canValidateAbsences, setCanValidateAbsences] = useState(false);
   const [canDeleteAbsences, setCanDeleteAbsences] = useState(false);
   const [absences, setAbsences] = useState<Absence[]>([]);
-  const [form, setForm] = useState({
-    staffName: "",
-    reason: "",
-    startDate: "",
-    endDate: "",
-  });
+  const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  async function loadAbsences() {
-    const { data, error } = await supabase
-      .from("absences")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const loadAbsences = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("absences")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Erreur chargement absences :", error);
-      return;
+      if (error) {
+        console.error("Erreur chargement absences :", error);
+        return;
+      }
+
+      setAbsences(((data || []) as AbsenceRow[]).map(mapAbsenceRow));
+    } finally {
+      setIsLoaded(true);
     }
-
-    setAbsences(
-      (data || []).map((a) => ({
-        id: a.id,
-        staffName: a.staff_name,
-        reason: a.reason,
-        startDate: a.start_date,
-        endDate: a.end_date,
-        status: a.status,
-      }))
-    );
-  }
+  }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function initPage() {
       try {
         const sessionEmail = localStorage.getItem(SESSION_STORAGE_KEY);
 
         if (!sessionEmail) {
-          setCanValidateAbsences(false);
-          setCanDeleteAbsences(false);
+          if (!cancelled) {
+            setCanValidateAbsences(false);
+            setCanDeleteAbsences(false);
+          }
           await loadAbsences();
           return;
         }
@@ -226,285 +441,171 @@ export default function AbsenceStaffPage() {
           .select("permission")
           .eq("email", sessionEmail);
 
-        if (permissionError) {
-          console.error("Erreur lecture permissions absence :", permissionError);
-          setCanValidateAbsences(false);
-          setCanDeleteAbsences(false);
-        } else {
-          const permissions = (permissionRows || []).map((row) => row.permission);
-          const hasMailAccess = permissions.includes("Mail Accès");
-          const hasAbsenceValidation = permissions.includes("absence-validation");
+        if (!cancelled) {
+          if (permissionError) {
+            console.error("Erreur lecture permissions absence :", permissionError);
+            setCanValidateAbsences(false);
+            setCanDeleteAbsences(false);
+          } else {
+            const permissions = (permissionRows || []).map((row) => row.permission);
+            const hasMailAccess = permissions.includes("Mail Accès");
+            const hasAbsenceValidation = permissions.includes("absence-validation");
+            const allowed = hasMailAccess || hasAbsenceValidation;
 
-          setCanValidateAbsences(hasMailAccess || hasAbsenceValidation);
-          setCanDeleteAbsences(hasMailAccess || hasAbsenceValidation);
+            setCanValidateAbsences(allowed);
+            setCanDeleteAbsences(allowed);
+          }
         }
 
         await loadAbsences();
       } catch (error) {
         console.error("Erreur initialisation absence :", error);
-        setCanValidateAbsences(false);
-        setCanDeleteAbsences(false);
+        if (!cancelled) {
+          setCanValidateAbsences(false);
+          setCanDeleteAbsences(false);
+        }
       }
     }
 
     initPage();
-  }, []);
 
-  function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, [loadAbsences]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const handleChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const { name, value } = e.target;
+      setForm((prev) => ({ ...prev, [name]: value }));
+    },
+    []
+  );
 
-    if (!form.staffName || !form.reason || !form.startDate || !form.endDate) {
-      alert("Remplis tous les champs.");
-      return;
-    }
+  const handleSubmit = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
 
-    if (new Date(form.endDate) < new Date(form.startDate)) {
-      alert("La date de fin ne peut pas être avant la date de début.");
-      return;
-    }
-
-    const sessionEmail = localStorage.getItem(SESSION_STORAGE_KEY);
-
-    const { error } = await supabase.from("absences").insert({
-      staff_name: form.staffName,
-      reason: form.reason,
-      start_date: form.startDate,
-      end_date: form.endDate,
-      status: "En attente",
-      created_by_email: sessionEmail,
-    });
-
-    if (error) {
-      console.error("Erreur création absence :", error);
-      alert("Erreur lors de la création de l'absence.");
-      return;
-    }
-
-    setForm({
-      staffName: "",
-      reason: "",
-      startDate: "",
-      endDate: "",
-    });
-
-    await loadAbsences();
-  }
-
-  async function applyValidatedAbsenceToHeures(absence: Absence) {
-    const { data: heuresRows, error } = await supabase
-      .from("heures_staff")
-      .select(
-        "id, semaine, staff, lundi, mardi, mercredi, jeudi, vendredi, samedi, dimanche"
-      );
-
-    if (error) {
-      console.error("Erreur lecture heures_staff pour absence validée :", error);
-      return;
-    }
-
-    const allRows = (heuresRows || []) as HeuresStaffRow[];
-
-    const matchingStaffRows = allRows.filter(
-      (row) =>
-        normalizeStaffName(row.staff) === normalizeStaffName(absence.staffName)
-    );
-
-    if (matchingStaffRows.length === 0) {
-      console.warn(
-        "Aucune ligne heures_staff trouvée pour le staff :",
-        absence.staffName
-      );
-      return;
-    }
-
-    const distinctWeekLabels = Array.from(
-      new Set(
-        matchingStaffRows.map((row) => (row.semaine || "").trim()).filter(Boolean)
-      )
-    );
-
-    const updatesByRowId = new Map<number, Partial<HeuresStaffRow>>();
-
-    for (const date of eachDateBetween(absence.startDate, absence.endDate)) {
-      const weekLabel = findWeekLabelForDate(distinctWeekLabels, date);
-      if (!weekLabel) continue;
-
-      const rowForWeek = matchingStaffRows.find(
-        (row) =>
-          (row.semaine || "").trim() === weekLabel &&
-          normalizeStaffName(row.staff) === normalizeStaffName(absence.staffName)
-      );
-
-      if (!rowForWeek) continue;
-
-      const dayField = DAY_FIELD_BY_INDEX[date.getDay()];
-      const currentValue = rowForWeek[dayField] || "";
-
-      if (String(currentValue).trim().toLowerCase() === "imprévu") {
-        continue;
+      if (!form.staffName || !form.reason || !form.startDate || !form.endDate) {
+        alert("Remplis tous les champs.");
+        return;
       }
 
-      const currentUpdate = updatesByRowId.get(rowForWeek.id) || {};
-      currentUpdate[dayField] = "Imprévu";
-      updatesByRowId.set(rowForWeek.id, currentUpdate);
-    }
+      if (new Date(form.endDate) < new Date(form.startDate)) {
+        alert("La date de fin ne peut pas être avant la date de début.");
+        return;
+      }
 
-    for (const [rowId, fieldsToUpdate] of updatesByRowId.entries()) {
-      const { error: updateError } = await supabase
-        .from("heures_staff")
-        .update(fieldsToUpdate)
-        .eq("id", rowId);
+      setIsSubmitting(true);
 
-      if (updateError) {
-        console.error(
-          `Erreur mise à jour heures_staff ligne ${rowId} :`,
-          updateError
+      try {
+        const sessionEmail = localStorage.getItem(SESSION_STORAGE_KEY);
+
+        const payload = {
+          staff_name: form.staffName,
+          reason: form.reason,
+          start_date: form.startDate,
+          end_date: form.endDate,
+          status: "En attente" as AbsenceStatus,
+          created_by_email: sessionEmail,
+        };
+
+        const { data, error } = await supabase
+          .from("absences")
+          .insert(payload)
+          .select("*")
+          .single();
+
+        if (error) {
+          console.error("Erreur création absence :", error);
+          alert("Erreur lors de la création de l'absence.");
+          return;
+        }
+
+        setForm(INITIAL_FORM);
+        setAbsences((prev) => [mapAbsenceRow(data as AbsenceRow), ...prev]);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [form]
+  );
+
+  const updateAbsenceStatus = useCallback(
+    async (absence: Absence, status: "Validée" | "Refusée") => {
+      setUpdatingId(absence.id);
+
+      try {
+        const { error } = await supabase
+          .from("absences")
+          .update({ status })
+          .eq("id", absence.id);
+
+        if (error) {
+          console.error("Erreur validation absence :", error);
+          alert("Erreur lors de la mise à jour du statut.");
+          return;
+        }
+
+        if (status === "Validée") {
+          await syncAbsenceToHeures(absence, "apply");
+        }
+
+        setAbsences((prev) =>
+          prev.map((item) =>
+            item.id === absence.id ? { ...item, status } : item
+          )
         );
+      } finally {
+        setUpdatingId(null);
       }
-    }
-  }
+    },
+    []
+  );
 
-  async function removeValidatedAbsenceFromHeures(absence: Absence) {
-    const { data: heuresRows, error } = await supabase
-      .from("heures_staff")
-      .select(
-        "id, semaine, staff, lundi, mardi, mercredi, jeudi, vendredi, samedi, dimanche"
-      );
-
-    if (error) {
-      console.error("Erreur lecture heures_staff pour suppression absence :", error);
-      return;
-    }
-
-    const allRows = (heuresRows || []) as HeuresStaffRow[];
-
-    const matchingStaffRows = allRows.filter(
-      (row) =>
-        normalizeStaffName(row.staff) === normalizeStaffName(absence.staffName)
-    );
-
-    if (matchingStaffRows.length === 0) {
-      console.warn(
-        "Aucune ligne heures_staff trouvée pour le staff :",
-        absence.staffName
-      );
-      return;
-    }
-
-    const distinctWeekLabels = Array.from(
-      new Set(
-        matchingStaffRows.map((row) => (row.semaine || "").trim()).filter(Boolean)
-      )
-    );
-
-    const updatesByRowId = new Map<number, Partial<HeuresStaffRow>>();
-
-    for (const date of eachDateBetween(absence.startDate, absence.endDate)) {
-      const weekLabel = findWeekLabelForDate(distinctWeekLabels, date);
-      if (!weekLabel) continue;
-
-      const rowForWeek = matchingStaffRows.find(
-        (row) =>
-          (row.semaine || "").trim() === weekLabel &&
-          normalizeStaffName(row.staff) === normalizeStaffName(absence.staffName)
-      );
-
-      if (!rowForWeek) continue;
-
-      const dayField = DAY_FIELD_BY_INDEX[date.getDay()];
-      const currentValue = String(rowForWeek[dayField] || "").trim().toLowerCase();
-
-      if (currentValue !== "imprévu") {
-        continue;
+  const deleteAbsence = useCallback(
+    async (absence: Absence) => {
+      if (!canDeleteAbsences) {
+        alert("Tu n'as pas la permission pour supprimer une absence.");
+        return;
       }
 
-      const currentUpdate = updatesByRowId.get(rowForWeek.id) || {};
-      currentUpdate[dayField] = "";
-      updatesByRowId.set(rowForWeek.id, currentUpdate);
-    }
+      const confirmed = window.confirm(
+        `Supprimer l'absence de ${absence.staffName} du ${formatDate(
+          absence.startDate
+        )} au ${formatDate(absence.endDate)} ?`
+      );
 
-    for (const [rowId, fieldsToUpdate] of updatesByRowId.entries()) {
-      const { error: updateError } = await supabase
-        .from("heures_staff")
-        .update(fieldsToUpdate)
-        .eq("id", rowId);
+      if (!confirmed) return;
 
-      if (updateError) {
-        console.error(
-          `Erreur suppression Imprévu heures_staff ligne ${rowId} :`,
-          updateError
-        );
+      setDeletingId(absence.id);
+
+      try {
+        if (absence.status === "Validée") {
+          await syncAbsenceToHeures(absence, "remove");
+        }
+
+        const { error } = await supabase
+          .from("absences")
+          .delete()
+          .eq("id", absence.id);
+
+        if (error) {
+          console.error("Erreur suppression absence :", error);
+          alert("Erreur lors de la suppression de l'absence.");
+          return;
+        }
+
+        setAbsences((prev) => prev.filter((item) => item.id !== absence.id));
+      } finally {
+        setDeletingId(null);
       }
-    }
-  }
-
-  async function updateAbsenceStatus(
-    id: string,
-    status: "Validée" | "Refusée"
-  ) {
-    const absence = absences.find((item) => item.id === id);
-
-    if (!absence) {
-      alert("Absence introuvable.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("absences")
-      .update({ status })
-      .eq("id", id);
-
-    if (error) {
-      console.error("Erreur validation absence :", error);
-      alert("Erreur lors de la mise à jour du statut.");
-      return;
-    }
-
-    if (status === "Validée") {
-      await applyValidatedAbsenceToHeures(absence);
-    }
-
-    await loadAbsences();
-  }
-
-  async function deleteAbsence(absence: Absence) {
-    if (!canDeleteAbsences) {
-      alert("Tu n'as pas la permission pour supprimer une absence.");
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Supprimer l'absence de ${absence.staffName} du ${formatDate(
-        absence.startDate
-      )} au ${formatDate(absence.endDate)} ?`
-    );
-
-    if (!confirmed) return;
-
-    if (absence.status === "Validée") {
-      await removeValidatedAbsenceFromHeures(absence);
-    }
-
-    const { error } = await supabase.from("absences").delete().eq("id", absence.id);
-
-    if (error) {
-      console.error("Erreur suppression absence :", error);
-      alert("Erreur lors de la suppression de l'absence.");
-      return;
-    }
-
-    await loadAbsences();
-  }
+    },
+    [canDeleteAbsences]
+  );
 
   const groupedByMonth = useMemo(() => {
-    const groups: Record<string, Absence[]> = {};
+    const groups = new Map<string, Absence[]>();
 
     for (const absence of absences) {
       const date = new Date(absence.startDate);
@@ -513,11 +614,11 @@ export default function AbsenceStaffPage() {
         year: "numeric",
       });
 
-      if (!groups[monthLabel]) groups[monthLabel] = [];
-      groups[monthLabel].push(absence);
+      if (!groups.has(monthLabel)) groups.set(monthLabel, []);
+      groups.get(monthLabel)!.push(absence);
     }
 
-    return groups;
+    return Array.from(groups.entries());
   }, [absences]);
 
   const stats = useMemo(() => {
@@ -617,9 +718,7 @@ export default function AbsenceStaffPage() {
             </span>
             <p>
               Le nom du staff doit être écrit{" "}
-              <span className="font-bold">
-                exactement pareil que sur Discord
-              </span>{" "}
+              <span className="font-bold">exactement pareil que sur Discord</span>{" "}
               pour que l’absence validée puisse remplir automatiquement{" "}
               <span className="font-bold">Heures staff</span>.
             </p>
@@ -691,10 +790,11 @@ export default function AbsenceStaffPage() {
 
             <button
               type="submit"
-              className="group inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#facc15,#f59e0b,#fb7185)] px-5 py-3 text-sm font-black text-black shadow-[0_14px_28px_rgba(250,204,21,0.18)] transition hover:-translate-y-0.5 hover:brightness-105 md:w-auto"
+              disabled={isSubmitting}
+              className="group inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#facc15,#f59e0b,#fb7185)] px-5 py-3 text-sm font-black text-black shadow-[0_14px_28px_rgba(250,204,21,0.18)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70 md:w-auto"
             >
               <span className="transition group-hover:translate-x-0.5">
-                Envoyer l’absence
+                {isSubmitting ? "Envoi..." : "Envoyer l’absence"}
               </span>
             </button>
           </form>
@@ -718,112 +818,44 @@ export default function AbsenceStaffPage() {
           </div>
 
           <div className="relative space-y-6">
-            {Object.entries(groupedByMonth).map(([month, items]) => (
-              <div key={month}>
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="bg-gradient-to-r from-yellow-200 via-yellow-300 to-amber-400 bg-clip-text text-sm font-black uppercase tracking-[0.22em] text-transparent">
-                    {month}
-                  </h3>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                    {items.length} absence{items.length > 1 ? "s" : ""}
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {items.map((absence) => (
-                    <div
-                      key={absence.id}
-                      className="group relative overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.02))] p-5 shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition duration-300 hover:-translate-y-0.5 hover:border-yellow-300/20"
-                    >
-                      <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-yellow-300 via-yellow-400 to-amber-500 opacity-80" />
-                      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-r from-yellow-400/5 via-fuchsia-400/5 to-cyan-400/5 opacity-0 transition group-hover:opacity-100" />
-
-                      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-lg font-bold text-white">
-                              {absence.staffName}
-                            </p>
-                            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/50">
-                              Staff
-                            </span>
-                          </div>
-
-                          <p className="mt-2 text-sm leading-6 text-white/70">
-                            {absence.reason}
-                          </p>
-
-                          <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                            <span className="rounded-full border border-cyan-300/15 bg-cyan-400/10 px-3 py-1 text-cyan-100">
-                              Du {formatDate(absence.startDate)}
-                            </span>
-                            <span className="rounded-full border border-fuchsia-300/15 bg-fuchsia-400/10 px-3 py-1 text-fuchsia-100">
-                              Au {formatDate(absence.endDate)}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-end gap-2">
-                          <span
-                            className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold ${getStatusClasses(
-                              absence.status
-                            )}`}
-                          >
-                            <span
-                              className={`h-2 w-2 rounded-full ${getStatusDot(
-                                absence.status
-                              )}`}
-                            />
-                            {absence.status}
-                          </span>
-
-                          {canValidateAbsences &&
-                            absence.status === "En attente" && (
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateAbsenceStatus(absence.id, "Validée")
-                                  }
-                                  className="rounded-xl border border-emerald-400/15 bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/25"
-                                >
-                                  Valider
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateAbsenceStatus(absence.id, "Refusée")
-                                  }
-                                  className="rounded-xl border border-rose-400/15 bg-rose-500/15 px-3 py-1.5 text-xs font-medium text-rose-200 transition hover:bg-rose-500/25"
-                                >
-                                  Refuser
-                                </button>
-                              </div>
-                            )}
-
-                          {canDeleteAbsences && (
-                            <button
-                              type="button"
-                              onClick={() => deleteAbsence(absence)}
-                              className="rounded-xl border border-red-400/15 bg-red-500/15 px-3 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/25"
-                            >
-                              Supprimer
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {!isLoaded ? (
+              <div className="rounded-[24px] border border-dashed border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-8 text-center text-sm text-white/60">
+                Chargement...
               </div>
-            ))}
-
-            {absences.length === 0 && (
+            ) : groupedByMonth.length === 0 ? (
               <div className="rounded-[24px] border border-dashed border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] p-8 text-center text-sm text-white/60">
                 <div className="mx-auto mb-3 h-12 w-12 rounded-2xl bg-white/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" />
                 Aucune absence enregistrée.
               </div>
+            ) : (
+              groupedByMonth.map(([month, items]) => (
+                <div key={month}>
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="bg-gradient-to-r from-yellow-200 via-yellow-300 to-amber-400 bg-clip-text text-sm font-black uppercase tracking-[0.22em] text-transparent">
+                      {month}
+                    </h3>
+                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                      {items.length} absence{items.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {items.map((absence) => (
+                      <AbsenceCard
+                        key={absence.id}
+                        absence={absence}
+                        canValidateAbsences={canValidateAbsences}
+                        canDeleteAbsences={canDeleteAbsences}
+                        onValidate={(item) => updateAbsenceStatus(item, "Validée")}
+                        onRefuse={(item) => updateAbsenceStatus(item, "Refusée")}
+                        onDelete={deleteAbsence}
+                        isUpdating={updatingId === absence.id}
+                        isDeleting={deletingId === absence.id}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>

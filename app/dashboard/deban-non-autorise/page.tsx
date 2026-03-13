@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Ban,
@@ -15,11 +14,13 @@ import {
   TerminalSquare,
 } from "lucide-react";
 
+type Tone = "danger" | "warning" | "neutral";
+
 type ReasonCategory = {
   id: string;
   title: string;
   description: string;
-  tone: "danger" | "warning" | "neutral";
+  tone: Tone;
   reasons: string[];
 };
 
@@ -134,24 +135,52 @@ const PC_VERIFICATION_STEPS = [
   "Faire rejoindre le joueur en vocal avant toute décision.",
   "Effectuer la vérification PC complète selon le document de référence.",
   "Rédiger une conclusion claire : déban, maintien du ban ou escalade.",
-];
+] as const;
 
-function normalize(text: string) {
-  return text
+const ALL_REASONS_COUNT = verificationCategories.reduce(
+  (total, category) => total + category.reasons.length,
+  0
+);
+
+const TONE_STYLES: Record<
+  Tone,
+  { badge: string; icon: string; dot: string }
+> = {
+  danger: {
+    badge: "border-red-400/25 bg-red-500/10 text-red-200",
+    icon: "border-red-400/25 bg-red-500/10 text-red-300",
+    dot: "bg-red-300",
+  },
+  warning: {
+    badge: "border-yellow-400/25 bg-yellow-400/10 text-yellow-200",
+    icon: "border-yellow-400/25 bg-yellow-400/10 text-yellow-300",
+    dot: "bg-yellow-300",
+  },
+  neutral: {
+    badge: "border-sky-400/25 bg-sky-500/10 text-sky-200",
+    icon: "border-sky-400/25 bg-sky-500/10 text-sky-300",
+    dot: "bg-sky-300",
+  },
+};
+
+const normalize = (text: string) =>
+  text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 
-function highlight(text: string, query: string) {
-  if (!query.trim()) return text;
+function highlightText(text: string, query: string) {
+  const cleanQuery = query.trim();
+  if (!cleanQuery) return text;
 
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const regex = new RegExp(`(${escaped})`, "ig");
-  const parts = text.split(regex);
+  const escaped = cleanQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`(${escaped})`, "gi");
 
-  return parts.map((part, index) =>
-    regex.test(part) ? (
+  return text.split(regex).map((part, index) => {
+    const isMatch = part.toLowerCase() === cleanQuery.toLowerCase();
+
+    return isMatch ? (
       <mark
         key={`${part}-${index}`}
         className="rounded-md bg-yellow-400/20 px-1 py-0.5 text-yellow-200"
@@ -160,80 +189,24 @@ function highlight(text: string, query: string) {
       </mark>
     ) : (
       <span key={`${part}-${index}`}>{part}</span>
-    )
-  );
+    );
+  });
 }
 
-function getToneClasses(tone: ReasonCategory["tone"]) {
-  if (tone === "danger") {
-    return {
-      badge: "border-red-400/25 bg-red-500/10 text-red-200",
-      icon: "border-red-400/25 bg-red-500/10 text-red-300",
-      dot: "bg-red-300",
-    };
-  }
+const baseCardClass =
+  "rounded-3xl border border-yellow-400/15 bg-[#111111]/88 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm";
 
-  if (tone === "warning") {
-    return {
-      badge: "border-yellow-400/25 bg-yellow-400/10 text-yellow-200",
-      icon: "border-yellow-400/25 bg-yellow-400/10 text-yellow-300",
-      dot: "bg-yellow-300",
-    };
-  }
-
-  return {
-    badge: "border-sky-400/25 bg-sky-500/10 text-sky-200",
-    icon: "border-sky-400/25 bg-sky-500/10 text-sky-300",
-    dot: "bg-sky-300",
-  };
-}
-
-function flattenReasons(categories: ReasonCategory[]) {
-  return categories.flatMap((category) => category.reasons);
-}
-
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopied(false);
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      className="inline-flex items-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-3 py-2 text-xs font-semibold text-yellow-200 transition hover:bg-yellow-400/15"
-    >
-      {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-      {copied ? "Copié" : "Copier"}
-    </button>
-  );
-}
-
-function SectionCard({
+const SectionCard = memo(function SectionCard({
   children,
   className = "",
 }: {
   children: React.ReactNode;
   className?: string;
 }) {
-  return (
-    <section
-      className={`rounded-3xl border border-yellow-400/15 bg-[#111111]/88 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md ${className}`}
-    >
-      {children}
-    </section>
-  );
-}
+  return <section className={`${baseCardClass} p-6 ${className}`}>{children}</section>;
+});
 
-function SectionHeader({
+const SectionHeader = memo(function SectionHeader({
   eyebrow,
   title,
   description,
@@ -251,9 +224,34 @@ function SectionHeader({
       ) : null}
     </div>
   );
+});
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }, [value]);
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="inline-flex items-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-3 py-2 text-xs font-semibold text-yellow-200 transition hover:bg-yellow-400/15"
+    >
+      {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+      {copied ? "Copié" : "Copier"}
+    </button>
+  );
 }
 
-function CommandCard({
+const CommandCard = memo(function CommandCard({
   title,
   command,
   example,
@@ -284,9 +282,9 @@ function CommandCard({
       </div>
     </SectionCard>
   );
-}
+});
 
-function StatCard({
+const StatCard = memo(function StatCard({
   label,
   value,
   description,
@@ -298,56 +296,83 @@ function StatCard({
   valueClassName?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-yellow-400/15 bg-[#111111]/88 p-5 shadow-[0_10px_30px_rgba(0,0,0,0.32)] backdrop-blur-md">
+    <div className="rounded-2xl border border-yellow-400/15 bg-[#111111]/88 p-5 shadow-[0_10px_30px_rgba(0,0,0,0.32)] backdrop-blur-sm">
       <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">{label}</p>
       <p className={`mt-3 text-3xl font-black ${valueClassName}`}>{value}</p>
       <p className="mt-2 text-sm leading-6 text-white/60">{description}</p>
     </div>
   );
-}
+});
 
-function HiddenImageLink() {
-  return (
-    <Link
-      href="/enpanne"
-      aria-label="Ouvrir l'image cachée"
-      className="ml-2 inline-block h-4 w-4 align-middle opacity-0"
-      title="..."
-    >
-      .
-    </Link>
+const ReasonItem = memo(function ReasonItem({
+  reason,
+  index,
+  search,
+  tone,
+  categoryId,
+}: {
+  reason: string;
+  index: number;
+  search: string;
+  tone: Tone;
+  categoryId: string;
+}) {
+  const toneStyles = TONE_STYLES[tone];
+  const content = (
+    <>
+      <div
+        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${toneStyles.icon}`}
+      >
+        {index + 1}
+      </div>
+      <div className="text-sm leading-7 text-white/88">{highlightText(reason, search)}</div>
+    </>
   );
-}
+
+  return (
+    <div className="rounded-2xl border border-yellow-400/10 bg-[#141414] p-4">
+      <div className="flex items-start gap-3">
+        {reason === "Clear Ped Tasks Event" ? (
+          <Link href="/enpanne" className="flex items-start gap-3">
+            {content}
+          </Link>
+        ) : (
+          content
+        )}
+      </div>
+    </div>
+  );
+});
 
 function ReasonAccordion({
   category,
   reasons,
   search,
-  defaultOpen = false,
 }: {
   category: ReasonCategory;
   reasons: string[];
   search: string;
-  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const tone = getToneClasses(category.tone);
+  const [open, setOpen] = useState(false);
+  const toneStyles = TONE_STYLES[category.tone];
 
   if (reasons.length === 0) return null;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20 transition-colors">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-white/[0.02]"
+        aria-expanded={open}
+        aria-controls={`accordion-${category.id}`}
       >
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
             <span
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${tone.badge}`}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${toneStyles.badge}`}
             >
-              <span className={`h-2 w-2 rounded-full ${tone.dot}`} />
+              <span className={`h-2 w-2 rounded-full ${toneStyles.dot}`} />
               {category.title}
             </span>
             <span className="text-sm font-semibold text-white/80">
@@ -365,33 +390,26 @@ function ReasonAccordion({
       </button>
 
       <div
-        className={`overflow-hidden border-t border-white/10 px-5 transition-all duration-300 ease-in-out ${
-          open ? "max-h-[3000px] py-4 opacity-100" : "max-h-0 py-0 opacity-0"
+        id={`accordion-${category.id}`}
+        className={`grid transition-all duration-300 ease-in-out ${
+          open ? "grid-rows-[1fr] border-t border-white/10" : "grid-rows-[0fr]"
         }`}
       >
-        <div className="grid gap-3 md:grid-cols-2">
-          {reasons.map((reason, index) => (
-            <div
-              key={`${category.id}-${reason}-${index}`}
-              className="rounded-2xl border border-yellow-400/10 bg-[#141414] p-4"
-            >
-              <div className="flex items-start gap-3">
-                <div
-                  className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${tone.icon}`}
-                >
-                  {index + 1}
-                </div>
-
-                {reason === "Clear Ped Tasks Event" ? (
-  <Link href="/enpanne" className="text-sm leading-7 text-white/88">
-    {highlight(reason, search)}
-  </Link>
-) : (
-  <p className="text-sm leading-7 text-white/88">{highlight(reason, search)}</p>
-)}
-              </div>
+        <div className="overflow-hidden">
+          <div className="px-5 py-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              {reasons.map((reason, index) => (
+                <ReasonItem
+                  key={`${category.id}-${reason}-${index}`}
+                  categoryId={category.id}
+                  index={index}
+                  reason={reason}
+                  search={search}
+                  tone={category.tone}
+                />
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </div>
@@ -401,23 +419,21 @@ function ReasonAccordion({
 export default function DebanNonAutorisePage() {
   const [search, setSearch] = useState("");
 
-  const totalReasons = useMemo(() => flattenReasons(verificationCategories).length, []);
+  const normalizedSearch = useMemo(() => normalize(search), [search]);
 
   const filteredCategories = useMemo(() => {
-    const q = normalize(search.trim());
-
-    if (!q) return verificationCategories;
+    if (!normalizedSearch) return verificationCategories;
 
     return verificationCategories
       .map((category) => ({
         ...category,
-        reasons: category.reasons.filter((reason) => normalize(reason).includes(q)),
+        reasons: category.reasons.filter((reason) => normalize(reason).includes(normalizedSearch)),
       }))
       .filter((category) => category.reasons.length > 0);
-  }, [search]);
+  }, [normalizedSearch]);
 
   const filteredCount = useMemo(
-    () => flattenReasons(filteredCategories).length,
+    () => filteredCategories.reduce((total, category) => total + category.reasons.length, 0),
     [filteredCategories]
   );
 
@@ -438,9 +454,9 @@ export default function DebanNonAutorisePage() {
             </h1>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-white/78 md:text-[15px]">
-              Cette page regroupe les règles de traitement pour les demandes de déban liées à un
-              ban AntiCheat. Lorsqu’un motif correspond à un flag listé ci-dessous, une
-              vérification PC est obligatoire avant toute décision.
+              Cette page regroupe les règles de traitement pour les demandes de déban liées à un ban
+              AntiCheat. Lorsqu’un motif correspond à un flag listé ci-dessous, une vérification PC
+              est obligatoire avant toute décision.
             </p>
           </div>
 
@@ -471,11 +487,7 @@ export default function DebanNonAutorisePage() {
           <div>
             <h2 className="text-lg font-bold text-white">Accès restreint</h2>
             <p className="mt-2 text-sm leading-6 text-white/78">
-              Les vérifications PC et les débans AC sont{" "}
-              <span className="font-semibold text-red-300">strictement réservés</span> à l’équipe
-              AntiCheat avec un grade minimum{" "}
-              <span className="font-semibold text-yellow-300">Administrateur</span>. Aucun autre
-              staff ne doit traiter ce type de dossier seul.
+              Les vérifications PC et les débans AC sont <span className="font-semibold text-red-300">strictement réservés</span> à l’équipe AntiCheat avec un grade minimum <span className="font-semibold text-yellow-300">Administrateur</span>. Aucun autre staff ne doit traiter ce type de dossier seul.
             </p>
           </div>
         </div>
@@ -484,7 +496,7 @@ export default function DebanNonAutorisePage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Motifs listés"
-          value={totalReasons}
+          value={ALL_REASONS_COUNT}
           description="Motifs AntiCheat nécessitant une vérification PC."
         />
         <StatCard
@@ -495,9 +507,9 @@ export default function DebanNonAutorisePage() {
         />
         <StatCard
           label="Résultats affichés"
-          value={search.trim() ? filteredCount : totalReasons}
+          value={normalizedSearch ? filteredCount : ALL_REASONS_COUNT}
           description={
-            search.trim()
+            normalizedSearch
               ? "Motifs correspondant à la recherche."
               : "Nombre total actuellement visibles."
           }
@@ -551,7 +563,6 @@ export default function DebanNonAutorisePage() {
                   category={category}
                   reasons={category.reasons}
                   search={search}
-                  defaultOpen={false}
                 />
               ))}
 
