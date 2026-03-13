@@ -26,22 +26,37 @@ type MailEntry = {
   created_by: string | null;
 };
 
+type StatCardProps = {
+  title: string;
+  value: string | number;
+  valueClassName?: string;
+  description: string;
+  glowClassName?: string;
+};
+
+type MailCardProps = {
+  entry: MailEntry;
+  canDelete: boolean;
+  isDeleting: boolean;
+  onDelete: (entry: MailEntry) => void;
+};
+
 const GOOGLE_FORM_URL =
   "https://docs.google.com/forms/d/1-do2eDUT2NaGm6M2Dfeo3emzioXC9_ZUI1AR73dPf6Q/edit?ts=6997074b#response=ACYDBNjJJSdt9HPUf-cnAgsjnAJcB3y5-tdsSEcTZ-pYDCKpuOjp4irIDPPe0Ua4E_gSAsU";
-
 const MAIL_ACCESS_PERMISSION = "/dashboard/mail-acces";
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMPTY_MESSAGE = "";
 
 function normalize(text: string) {
   return text.toLowerCase().trim();
 }
 
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString("fr-FR", {
+  return new Intl.DateTimeFormat("fr-FR", {
     day: "2-digit",
     month: "long",
     year: "numeric",
-  });
+  }).format(new Date(date));
 }
 
 function canDeleteEntry(
@@ -50,21 +65,10 @@ function canDeleteEntry(
   canManageAll: boolean
 ) {
   if (canManageAll) return true;
-  if (!sessionEmail) return false;
+  if (!sessionEmail || !entry.created_by) return false;
 
-  return (
-    !!entry.created_by &&
-    entry.created_by.toLowerCase() === sessionEmail.toLowerCase()
-  );
+  return normalize(entry.created_by) === normalize(sessionEmail);
 }
-
-type StatCardProps = {
-  title: string;
-  value: string | number;
-  valueClassName?: string;
-  description: string;
-  glowClassName?: string;
-};
 
 const StatCard = memo(function StatCard({
   title,
@@ -89,13 +93,6 @@ const StatCard = memo(function StatCard({
   );
 });
 
-type MailCardProps = {
-  entry: MailEntry;
-  canDelete: boolean;
-  isDeleting: boolean;
-  onDelete: (entry: MailEntry) => void;
-};
-
 const MailCard = memo(function MailCard({
   entry,
   canDelete,
@@ -109,15 +106,15 @@ const MailCard = memo(function MailCard({
       <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-yellow-300 via-yellow-400 to-amber-500 opacity-80" />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+        <div className="min-w-0 flex items-center gap-3">
           <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/10 p-3 text-yellow-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             <Mail className="h-5 w-5" />
           </div>
 
-          <div>
-            <p className="text-lg font-bold text-white">{entry.email}</p>
+          <div className="min-w-0">
+            <p className="truncate text-lg font-bold text-white">{entry.email}</p>
             <p className="mt-1 text-xs text-white/45">Ajouté le {formattedDate}</p>
-            <p className="mt-1 text-xs text-white/40">
+            <p className="mt-1 truncate text-xs text-white/40">
               Ajouté par : {entry.created_by || "inconnu"}
             </p>
           </div>
@@ -128,7 +125,7 @@ const MailCard = memo(function MailCard({
             type="button"
             onClick={() => onDelete(entry)}
             disabled={isDeleting}
-            className="inline-flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Trash2 size={16} />
             {isDeleting ? "Suppression..." : "Supprimer"}
@@ -140,101 +137,88 @@ const MailCard = memo(function MailCard({
 });
 
 export default function MailPage() {
-  const [email, setEmail] = useState("");
-  const [search, setSearch] = useState("");
+  const [email, setEmail] = useState(EMPTY_MESSAGE);
+  const [search, setSearch] = useState(EMPTY_MESSAGE);
   const [entries, setEntries] = useState<MailEntry[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [message, setMessage] = useState("");
-  const [sessionEmail, setSessionEmail] = useState("");
+  const [message, setMessage] = useState(EMPTY_MESSAGE);
+  const [sessionEmail, setSessionEmail] = useState(EMPTY_MESSAGE);
   const [canManageAll, setCanManageAll] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const normalizedSessionEmail = useMemo(
-    () => sessionEmail.trim().toLowerCase(),
-    [sessionEmail]
-  );
+  const normalizedSessionEmail = useMemo(() => normalize(sessionEmail), [sessionEmail]);
+  const normalizedSearch = useMemo(() => normalize(search), [search]);
 
   const loadEntries = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("suicide_rp_mails")
-        .select("*")
-        .order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("suicide_rp_mails")
+      .select("id, email, created_at, created_by")
+      .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Erreur chargement mails :", error);
-        setMessage("Impossible de charger les adresses mail.");
-        return;
-      }
-
-      setEntries((data ?? []) as MailEntry[]);
-    } catch (error) {
-      console.error("Erreur chargement mails :", error);
-      setMessage("Erreur serveur.");
-    } finally {
-      setIsLoaded(true);
-    }
+    if (error) throw error;
+    return (data ?? []) as MailEntry[];
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    let ignore = false;
 
     async function initPage() {
       try {
-        const currentSessionEmail = (getSessionEmail() || "").trim();
+        setMessage(EMPTY_MESSAGE);
 
-        if (cancelled) return;
+        const currentSessionEmail = (getSessionEmail() || EMPTY_MESSAGE).trim();
+        if (ignore) return;
+
         setSessionEmail(currentSessionEmail);
 
-        if (!currentSessionEmail) {
-          setCanManageAll(false);
-          await loadEntries();
-          return;
+        let hasManageAll = false;
+
+        if (currentSessionEmail) {
+          const { data, error } = await supabase
+            .from("user_permissions")
+            .select("permission")
+            .eq("email", currentSessionEmail);
+
+          if (!ignore && !error) {
+            hasManageAll = (data ?? []).some(
+              (item) => item.permission === MAIL_ACCESS_PERMISSION
+            );
+          }
+
+          if (!ignore && error) {
+            console.error("Erreur permission mail-acces :", error);
+          }
         }
 
-        const { data, error } = await supabase
-          .from("user_permissions")
-          .select("permission")
-          .eq("email", currentSessionEmail);
-
-        if (cancelled) return;
-
-        if (error) {
-          console.error("Erreur permission mail-acces :", error);
-          setCanManageAll(false);
-          await loadEntries();
-          return;
-        }
-
-        const hasManageAll = (data ?? []).some(
-          (item) => item.permission === MAIL_ACCESS_PERMISSION
-        );
-
+        if (ignore) return;
         setCanManageAll(hasManageAll);
-        await loadEntries();
+
+        const rows = await loadEntries();
+        if (ignore) return;
+        setEntries(rows);
       } catch (error) {
-        if (!cancelled) {
-          console.error("Erreur initialisation mails :", error);
-          setMessage("Impossible de charger la page.");
-          setIsLoaded(true);
-        }
+        if (ignore) return;
+        console.error("Erreur initialisation mails :", error);
+        setMessage("Impossible de charger les adresses mail.");
+      } finally {
+        if (!ignore) setIsLoaded(true);
       }
     }
 
     initPage();
 
     return () => {
-      cancelled = true;
+      ignore = true;
     };
   }, [loadEntries]);
 
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
-      setMessage("");
+      setMessage(EMPTY_MESSAGE);
 
-      const cleanEmail = email.trim().toLowerCase();
+      const cleanEmail = normalize(email);
 
       if (!cleanEmail) {
         setMessage("Merci de renseigner une adresse mail.");
@@ -246,53 +230,57 @@ export default function MailPage() {
         return;
       }
 
+      const alreadyExists = entries.some((entry) => normalize(entry.email) === cleanEmail);
+      if (alreadyExists) {
+        setMessage("Cette adresse mail est déjà enregistrée.");
+        return;
+      }
+
       setIsSubmitting(true);
 
       try {
-        const payload = {
-          email: cleanEmail,
-          created_by: sessionEmail || null,
-        };
-
         const { data, error } = await supabase
           .from("suicide_rp_mails")
-          .insert([payload])
-          .select("*")
+          .insert([
+            {
+              email: cleanEmail,
+              created_by: normalizedSessionEmail || null,
+            },
+          ])
+          .select("id, email, created_at, created_by")
           .single();
 
-        if (error) {
-          console.error("Erreur ajout mail :", error);
-
-          if (error.message?.toLowerCase().includes("duplicate")) {
-            setMessage("Cette adresse mail est déjà enregistrée.");
-          } else {
-            setMessage("Impossible d’enregistrer cette adresse mail.");
-          }
-          return;
-        }
+        if (error) throw error;
 
         setEntries((prev) => [data as MailEntry, ...prev]);
-        setEmail("");
+        setEmail(EMPTY_MESSAGE);
         setMessage("Adresse mail enregistrée avec succès.");
-      } catch (error) {
+      } catch (error: any) {
         console.error("Erreur ajout mail :", error);
-        setMessage("Erreur serveur pendant l’enregistrement.");
+
+        const errorMessage = String(error?.message || EMPTY_MESSAGE).toLowerCase();
+        if (errorMessage.includes("duplicate") || errorMessage.includes("unique")) {
+          setMessage("Cette adresse mail est déjà enregistrée.");
+        } else {
+          setMessage("Impossible d’enregistrer cette adresse mail.");
+        }
       } finally {
         setIsSubmitting(false);
       }
     },
-    [email, sessionEmail]
+    [email, entries, normalizedSessionEmail]
   );
 
   const handleDelete = useCallback(
     async (entry: MailEntry) => {
-      const canDelete = canDeleteEntry(entry, normalizedSessionEmail, canManageAll);
+      const allowed = canDeleteEntry(entry, normalizedSessionEmail, canManageAll);
 
-      if (!canDelete) {
+      if (!allowed) {
         setMessage("Tu ne peux supprimer que les mails que tu as ajoutés.");
         return;
       }
 
+      setMessage(EMPTY_MESSAGE);
       setDeletingId(entry.id);
 
       try {
@@ -301,17 +289,13 @@ export default function MailPage() {
           .delete()
           .eq("id", entry.id);
 
-        if (error) {
-          console.error("Erreur suppression mail :", error);
-          setMessage("Impossible de supprimer cette adresse mail.");
-          return;
-        }
+        if (error) throw error;
 
         setEntries((prev) => prev.filter((item) => item.id !== entry.id));
         setMessage("Adresse mail supprimée. L’accès au Google Form est retiré.");
       } catch (error) {
         console.error("Erreur suppression mail :", error);
-        setMessage("Erreur serveur pendant la suppression.");
+        setMessage("Impossible de supprimer cette adresse mail.");
       } finally {
         setDeletingId(null);
       }
@@ -319,22 +303,20 @@ export default function MailPage() {
     [canManageAll, normalizedSessionEmail]
   );
 
-  const normalizedSearch = useMemo(() => normalize(search), [search]);
-
   const filteredEntries = useMemo(() => {
     if (!normalizedSearch) return entries;
 
-    return entries.filter((entry) =>
-      normalize(entry.email).includes(normalizedSearch)
+    return entries.filter(
+      (entry) =>
+        normalize(entry.email).includes(normalizedSearch) ||
+        normalize(entry.created_by || EMPTY_MESSAGE).includes(normalizedSearch)
     );
   }, [entries, normalizedSearch]);
 
   const hasAccess = useMemo(() => {
     if (!normalizedSessionEmail) return false;
 
-    return entries.some(
-      (entry) => entry.email.toLowerCase() === normalizedSessionEmail
-    );
+    return entries.some((entry) => normalize(entry.email) === normalizedSessionEmail);
   }, [entries, normalizedSessionEmail]);
 
   const stats = useMemo(
@@ -346,12 +328,14 @@ export default function MailPage() {
     [entries.length, filteredEntries.length, hasAccess]
   );
 
-  const mappedEntries = useMemo(() => {
-    return filteredEntries.map((entry) => ({
-      entry,
-      canDelete: canDeleteEntry(entry, normalizedSessionEmail, canManageAll),
-    }));
-  }, [filteredEntries, normalizedSessionEmail, canManageAll]);
+  const mappedEntries = useMemo(
+    () =>
+      filteredEntries.map((entry) => ({
+        entry,
+        canDelete: canDeleteEntry(entry, normalizedSessionEmail, canManageAll),
+      })),
+    [filteredEntries, normalizedSessionEmail, canManageAll]
+  );
 
   return (
     <div className="space-y-6">
@@ -375,9 +359,8 @@ export default function MailPage() {
           <div className="mt-4 h-px w-44 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
 
           <p className="mt-4 max-w-3xl text-sm leading-7 text-white/82">
-            Pour accéder au Google Form de Suicide RP, l’adresse mail doit être
-            enregistrée. Cette liste est maintenant synchronisée pour tout le
-            staff.
+            Pour accéder au Google Form de Suicide RP, l’adresse mail doit être enregistrée.
+            Cette liste est synchronisée pour tout le staff.
           </p>
         </div>
       </section>
@@ -401,7 +384,7 @@ export default function MailPage() {
           title="Accès Form"
           value={stats.access}
           valueClassName={hasAccess ? "text-emerald-300" : "text-red-300"}
-          description="Le formulaire est accessible seulement si au moins un mail est enregistré."
+          description="Le formulaire est accessible seulement si ton mail est dans la liste."
           glowClassName={
             hasAccess
               ? "from-emerald-400/15 via-yellow-300/10 to-transparent"
@@ -414,8 +397,8 @@ export default function MailPage() {
         <div className="flex gap-3">
           <ShieldAlert className="mt-0.5 shrink-0 text-red-300" />
           <p className="text-sm leading-6 text-white/82">
-            L’adresse mail est obligatoire pour accéder au Google Form. Toute
-            suppression du mail enlève automatiquement l’accès.
+            L’adresse mail est obligatoire pour accéder au Google Form. Toute suppression du mail
+            enlève automatiquement l’accès.
           </p>
         </div>
       </div>
@@ -424,15 +407,10 @@ export default function MailPage() {
         <div className="relative overflow-hidden rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm">
           <div className="absolute right-0 top-0 h-36 w-36 rounded-full bg-yellow-400/10 blur-3xl" />
           <div className="relative mb-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-              Ajout
-            </p>
-            <h2 className="mt-2 text-2xl font-black text-white">
-              Ajouter une adresse mail
-            </h2>
+            <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">Ajout</p>
+            <h2 className="mt-2 text-2xl font-black text-white">Ajouter une adresse mail</h2>
             <p className="mt-2 text-sm leading-6 text-white/60">
-              Enregistre une adresse mail pour autoriser l’accès au formulaire
-              Suicide RP.
+              Enregistre une adresse mail pour autoriser l’accès au formulaire Suicide RP.
             </p>
           </div>
 
@@ -447,6 +425,7 @@ export default function MailPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="exemple@gmail.com"
+                autoComplete="email"
                 className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45 focus:shadow-[0_0_0_4px_rgba(250,204,21,0.08)]"
               />
             </div>
@@ -490,7 +469,7 @@ export default function MailPage() {
 
           {!hasAccess ? (
             <p className="mt-3 text-xs leading-5 text-yellow-200/75">
-              Ajoute au moins une adresse mail pour débloquer l’accès au formulaire.
+              Ajoute ton adresse mail dans la liste pour débloquer l’accès au formulaire.
             </p>
           ) : null}
         </div>
@@ -500,19 +479,15 @@ export default function MailPage() {
 
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
-                Liste
-              </p>
-              <h2 className="mt-1 text-2xl font-black text-white">
-                Mails enregistrés
-              </h2>
+              <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">Liste</p>
+              <h2 className="mt-1 text-2xl font-black text-white">Mails enregistrés</h2>
             </div>
 
             <div className="relative w-full max-w-sm">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
               <input
                 type="text"
-                placeholder="Rechercher un mail..."
+                placeholder="Rechercher un mail ou un auteur..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-black/35 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45 focus:shadow-[0_0_0_4px_rgba(250,204,21,0.08)]"
@@ -527,7 +502,7 @@ export default function MailPage() {
               </div>
             ) : mappedEntries.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
-                Aucun mail enregistré.
+                {normalizedSearch ? "Aucun résultat pour cette recherche." : "Aucun mail enregistré."}
               </div>
             ) : (
               mappedEntries.map(({ entry, canDelete }) => (
