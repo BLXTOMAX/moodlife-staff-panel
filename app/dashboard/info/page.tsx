@@ -1,54 +1,72 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import SitePresenceWidget from "@/components/site-presence-widget";
+import dynamic from "next/dynamic";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
   ChevronRight,
   Copy,
-  Server,
-  Users,
   Radio,
-  Sparkles,
-  Wifi,
+  Server,
   ShieldCheck,
+  Sparkles,
+  Users,
+  Wifi,
 } from "lucide-react";
+
+const SitePresenceWidget = dynamic(
+  () => import("@/components/site-presence-widget"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-[28px] border border-white/10 bg-white/5 p-6 text-sm text-white/60">
+        Chargement du widget...
+      </div>
+    ),
+  }
+);
 
 type ServerStats = {
   players: number | null;
   maxPlayers: number | null;
 };
 
-function QuickCard({
-  href,
-  title,
-  subtitle,
-  description,
-  external = false,
-  variant = "dark",
-}: {
+type QuickCardProps = {
   href: string;
   title: string;
   subtitle: string;
   description?: string;
   external?: boolean;
   variant?: "dark" | "yellow" | "blue";
-}) {
-  const styles =
-    variant === "yellow"
-      ? "border-yellow-400/20 bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] text-black shadow-[0_12px_30px_rgba(250,204,21,0.24)] hover:shadow-[0_18px_40px_rgba(250,204,21,0.30)]"
-      : variant === "blue"
-      ? "border-blue-400/20 bg-[linear-gradient(135deg,#2563eb,#3b82f6,#60a5fa)] text-white shadow-[0_12px_30px_rgba(37,99,235,0.24)] hover:shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
-      : "border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] text-white shadow-[0_12px_30px_rgba(0,0,0,0.26)] hover:border-yellow-300/20 hover:shadow-[0_18px_40px_rgba(0,0,0,0.34)]";
+};
 
+const CONNECT_COMMAND = "connect cfx.re/join/5g6lmd";
+const STATS_REFRESH_MS = 15000;
+
+const quickCardStyles = {
+  yellow:
+    "border-yellow-400/20 bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] text-black shadow-[0_12px_30px_rgba(250,204,21,0.24)] hover:shadow-[0_18px_40px_rgba(250,204,21,0.30)]",
+  blue: "border-blue-400/20 bg-[linear-gradient(135deg,#2563eb,#3b82f6,#60a5fa)] text-white shadow-[0_12px_30px_rgba(37,99,235,0.24)] hover:shadow-[0_18px_40px_rgba(37,99,235,0.32)]",
+  dark: "border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] text-white shadow-[0_12px_30px_rgba(0,0,0,0.26)] hover:border-yellow-300/20 hover:shadow-[0_18px_40px_rgba(0,0,0,0.34)]",
+} as const;
+
+const QuickCard = memo(function QuickCard({
+  href,
+  title,
+  subtitle,
+  description,
+  external = false,
+  variant = "dark",
+}: QuickCardProps) {
   return (
     <a
       href={href}
       target={external ? "_blank" : undefined}
       rel={external ? "noreferrer" : undefined}
-      className={`group relative overflow-hidden rounded-[28px] border p-6 transition duration-300 hover:-translate-y-1 ${styles}`}
+      className={`group relative overflow-hidden rounded-[28px] border p-6 transition duration-300 hover:-translate-y-1 ${quickCardStyles[variant]}`}
     >
       <div className="absolute inset-0 bg-[linear-gradient(to_bottom_right,rgba(255,255,255,0.05),transparent)]" />
+
       <div className="relative">
         <div>
           <p
@@ -59,7 +77,7 @@ function QuickCard({
             {subtitle}
           </p>
 
-          {description && (
+          {description ? (
             <p
               className={`mt-1 text-xs ${
                 variant === "yellow" ? "text-black/70" : "text-white/70"
@@ -67,7 +85,7 @@ function QuickCard({
             >
               {description}
             </p>
-          )}
+          ) : null}
         </div>
 
         <div className="mt-2 flex items-center justify-between gap-4">
@@ -77,59 +95,116 @@ function QuickCard({
       </div>
     </a>
   );
-}
+});
 
 export default function InfoPage() {
   const [stats, setStats] = useState<ServerStats>({
     players: null,
     maxPlayers: null,
   });
-
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
-    async function fetchStats() {
-      try {
-        const res = await fetch("/api/server-stats", {
-          cache: "no-store",
-        });
+  const updateStats = useCallback((nextStats: ServerStats) => {
+    setStats((prev) => {
+      if (
+        prev.players === nextStats.players &&
+        prev.maxPlayers === nextStats.maxPlayers
+      ) {
+        return prev;
+      }
+      return nextStats;
+    });
+  }, []);
 
-        if (!res.ok) {
-          throw new Error("Impossible de récupérer les stats");
-        }
+  const fetchStats = useCallback(async () => {
+    const controller = new AbortController();
 
-        const data = await res.json();
+    try {
+      const res = await fetch("/api/server-stats", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
 
-        setStats({
-          players: data.players ?? null,
-          maxPlayers: data.maxPlayers ?? null,
-        });
-      } catch {
-        setStats({
-          players: null,
-          maxPlayers: null,
-        });
-      } finally {
+      if (!res.ok) {
+        throw new Error("Impossible de récupérer les stats");
+      }
+
+      const data = await res.json();
+
+      if (!mountedRef.current) return;
+
+      updateStats({
+        players: data.players ?? null,
+        maxPlayers: data.maxPlayers ?? null,
+      });
+    } catch {
+      if (!mountedRef.current) return;
+
+      updateStats({
+        players: null,
+        maxPlayers: null,
+      });
+    } finally {
+      if (mountedRef.current) {
         setLoading(false);
       }
     }
 
+    return () => controller.abort();
+  }, [updateStats]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    const scheduleNextFetch = () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      timeoutRef.current = setTimeout(async () => {
+        if (document.visibilityState === "visible") {
+          await fetchStats();
+        }
+        scheduleNextFetch();
+      }, STATS_REFRESH_MS);
+    };
+
     fetchStats();
-    interval = setInterval(fetchStats, 15000);
+    scheduleNextFetch();
 
-    return () => clearInterval(interval);
-  }, []);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchStats();
+      }
+    };
 
-  async function handleCopy() {
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      mountedRef.current = false;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, [fetchStats]);
+
+  const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText("connect cfx.re/join/5g6lmd");
+      await navigator.clipboard.writeText(CONNECT_COMMAND);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {}
-  }
+
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => {
+        if (mountedRef.current) setCopied(false);
+      }, 2000);
+    } catch {
+      // no-op
+    }
+  }, []);
 
   const isOnline =
     !loading && stats.players !== null && stats.maxPlayers !== null;
@@ -168,7 +243,7 @@ export default function InfoPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
         <div className="space-y-6">
-          <div className="relative overflow-hidden rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_12px_35px_rgba(0,0,0,0.35)] backdrop-blur-md">
+          <div className="relative overflow-hidden rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_12px_35px_rgba(0,0,0,0.35)] backdrop-blur-sm">
             <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-yellow-400/10 blur-3xl" />
             <div className="absolute bottom-0 left-0 h-36 w-36 rounded-full bg-emerald-400/5 blur-3xl" />
 
@@ -307,7 +382,7 @@ export default function InfoPage() {
 
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
               <p className="break-all text-lg font-bold text-yellow-300 md:text-xl">
-                connect cfx.re/join/5g6lmd
+                {CONNECT_COMMAND}
               </p>
 
               <button
