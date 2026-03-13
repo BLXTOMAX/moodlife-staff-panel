@@ -251,9 +251,9 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="hidden w-[320px] shrink-0 border-r border-yellow-400/10 bg-black/35 backdrop-blur-xl xl:flex xl:flex-col">
+    <aside className="hidden w-[320px] shrink-0 border-r border-yellow-400/10 bg-black/85 xl:flex xl:flex-col">
       <div className="relative border-b border-yellow-400/10 px-5 py-5">
-        <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-yellow-400/10 blur-3xl" />
+        <div className="absolute right-0 top-0 h-20 w-20 rounded-full bg-yellow-400/8 blur-2xl" />
 
         <div className="relative overflow-hidden rounded-[28px] border border-yellow-400/15 bg-gradient-to-br from-[#121212]/90 via-[#0a0a0a]/85 to-black/90 p-5 shadow-[0_14px_36px_rgba(0,0,0,0.35)] backdrop-blur-md">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,215,0,0.12),transparent_30%)]" />
