@@ -92,6 +92,10 @@ const links: SidebarLink[] = [
   },
 ];
 
+function normalize(text: string) {
+  return text.toLowerCase().trim();
+}
+
 function SidebarSection({
   title,
   items,
@@ -177,7 +181,8 @@ export default function Sidebar() {
     let mounted = true;
 
     async function loadPermissions() {
-      const email = getSessionEmail();
+      const rawEmail = getSessionEmail();
+      const email = normalize(rawEmail || "");
 
       if (!email) {
         if (mounted) {
@@ -189,7 +194,9 @@ export default function Sidebar() {
 
       if (isOwner(email)) {
         if (mounted) {
-          setPermissions(links.map((item) => item.href));
+          setPermissions(
+            Array.from(new Set([...ALWAYS_ALLOWED, ...links.map((item) => item.href)]))
+          );
           setLoadingPermissions(false);
         }
         return;
