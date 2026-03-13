@@ -1,342 +1,588 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  ArrowRight,
-  BadgeCheck,
-  Bell,
-  CalendarRange,
-  FolderKanban,
-  Scale,
-  Shield,
-  Sparkles,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
+import {
+  ExternalLink,
+  Lock,
+  Mail,
+  Plus,
+  Search,
+  ShieldAlert,
+  Trash2,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { getSessionEmail } from "@/lib/access";
 
-type DayKey = "lun" | "mar" | "mer" | "jeu" | "ven" | "sam" | "dim";
-
-type StaffRole =
-  | "Gérant-Staff"
-  | "Super-Administrateur"
-  | "Administrateur"
-  | "Modérateur"
-  | "Helpeur";
-
-type StaffRow = {
+type MailEntry = {
   id: number;
-  name: string;
-  role: StaffRole;
-  hours: Record<DayKey, string>;
-  reports: Record<DayKey, number>;
+  email: string;
+  created_at: string;
+  created_by: string | null;
 };
 
-type WeekRecord = {
-  id: string;
-  label: string;
-  rows: StaffRow[];
-  nextId: number;
-  createdAt: string;
+type StatCardProps = {
+  title: string;
+  value: string | number;
+  valueClassName?: string;
+  description: string;
+  glowClassName?: string;
 };
 
-type HoursStorage = {
-  weeks: WeekRecord[];
-  activeWeekId: string | null;
+type MailCardProps = {
+  entry: MailEntry;
+  canDelete: boolean;
+  isDeleting: boolean;
+  onDelete: (entry: MailEntry) => void;
 };
 
-const HOURS_STORAGE_KEY = "moodlife-staff-weeks";
+const GOOGLE_FORM_URL =
+  "https://docs.google.com/forms/d/1-do2eDUT2NaGm6M2Dfeo3emzioXC9_ZUI1AR73dPf6Q/edit?ts=6997074b#response=ACYDBNjJJSdt9HPUf-cnAgsjnAJcB3y5-tdsSEcTZ-pYDCKpuOjp4irIDPPe0Ua4E_gSAsU";
 
-const DAY_KEYS: DayKey[] = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"];
+const MAIL_ACCESS_PERMISSION = "/dashboard/mail-acces";
+const ESPACE_SA_GERANT_PERMISSION = "/dashboard/espace-sa-gerant";
 
-function parseHourToMinutes(value: string) {
-  const clean = value.trim().toLowerCase();
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMPTY_MESSAGE = "";
 
-  if (!clean || clean === "0" || clean === "imprévu" || clean === "imprevu") {
-    return 0;
-  }
-
-  const match = clean.match(/^(\d{1,2})[:h](\d{1,2})$/);
-  if (match) {
-    const hours = Number(match[1]);
-    const minutes = Number(match[2]);
-
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return 0;
-    return hours * 60 + minutes;
-  }
-
-  const asNumber = Number(clean.replace(",", "."));
-  if (!Number.isNaN(asNumber)) {
-    return Math.round(asNumber * 60);
-  }
-
-  return 0;
+function normalize(text: string) {
+  return text.toLowerCase().trim();
 }
 
-function formatMinutes(total: number) {
-  const safe = Math.max(0, total);
-  const hours = Math.floor(safe / 60);
-  const minutes = safe % 60;
-  return `${hours}h${minutes.toString().padStart(2, "0")}`;
+function formatDate(date: string) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(date));
 }
 
-function StatCard({
+function canDeleteEntry(
+  entry: MailEntry,
+  sessionEmail: string,
+  canManageAll: boolean
+) {
+  if (canManageAll) return true;
+  if (!sessionEmail || !entry.created_by) return false;
+
+  return normalize(entry.created_by) === normalize(sessionEmail);
+}
+
+const StatCard = memo(function StatCard({
   title,
   value,
-  subtitle,
-}: {
-  title: string;
-  value: string;
-  subtitle: string;
-}) {
+  valueClassName = "text-yellow-300",
+  description,
+  glowClassName = "from-yellow-500/20 via-yellow-300/10 to-transparent",
+}: StatCardProps) {
   return (
-    <div className="rounded-3xl border border-yellow-400/15 bg-[#090909] p-6 shadow-[0_10px_35px_rgba(0,0,0,0.35)]">
-      <p className="text-xs uppercase tracking-[0.28em] text-yellow-300/80">
-        {title}
-      </p>
-      <p className="mt-4 text-4xl font-black text-white">{value}</p>
-      <p className="mt-2 text-sm leading-6 text-white/60">{subtitle}</p>
+    <div className="group relative overflow-hidden rounded-[24px] border border-yellow-400/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.30)] backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-yellow-300/20">
+      <div
+        className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-r ${glowClassName} opacity-80 blur-2xl transition group-hover:opacity-100`}
+      />
+      <div className="relative">
+        <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">
+          {title}
+        </p>
+        <p className={`mt-3 text-3xl font-black ${valueClassName}`}>{value}</p>
+        <p className="mt-2 text-sm leading-6 text-white/60">{description}</p>
+      </div>
     </div>
   );
-}
+});
 
-function ToolCard({
-  href,
-  icon,
-  title,
-  text,
-}: {
-  href: string;
-  icon: ReactNode;
-  title: string;
-  text: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group rounded-3xl border border-yellow-400/15 bg-[#0b0b0b] p-6 transition hover:-translate-y-0.5 hover:border-yellow-400/30 hover:bg-[#101010]"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-yellow-300">
-          {icon}
-        </div>
-        <ArrowRight className="h-5 w-5 text-white/30 transition group-hover:translate-x-1 group-hover:text-yellow-300" />
-      </div>
-
-      <h3 className="mt-5 text-xl font-bold text-white">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-white/60">{text}</p>
-    </Link>
+const MailCard = memo(function MailCard({
+  entry,
+  canDelete,
+  isDeleting,
+  onDelete,
+}: MailCardProps) {
+  const formattedDate = useMemo(
+    () => formatDate(entry.created_at),
+    [entry.created_at]
   );
-}
 
-export default function EspaceSaGerantPage() {
-  const [storage, setStorage] = useState<HoursStorage>({
-    weeks: [],
-    activeWeekId: null,
-  });
+  return (
+    <div className="group relative overflow-hidden rounded-[26px] border border-yellow-400/12 bg-[#151515]/92 p-5 shadow-[0_8px_20px_rgba(0,0,0,0.28)] transition duration-300 hover:border-yellow-300/20 hover:bg-[#171717]/95">
+      <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-yellow-300 via-yellow-400 to-amber-500 opacity-80" />
 
-  useEffect(() => {
-    const raw = window.localStorage.getItem(HOURS_STORAGE_KEY);
-    if (!raw) return;
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 flex items-center gap-3">
+          <div className="rounded-2xl border border-yellow-400/15 bg-yellow-400/10 p-3 text-yellow-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <Mail className="h-5 w-5" />
+          </div>
 
-    try {
-      const parsed = JSON.parse(raw) as HoursStorage;
-      setStorage({
-        weeks: Array.isArray(parsed.weeks) ? parsed.weeks : [],
-        activeWeekId: parsed.activeWeekId ?? null,
-      });
-    } catch {
-      setStorage({ weeks: [], activeWeekId: null });
-    }
+          <div className="min-w-0">
+            <p className="truncate text-lg font-bold text-white">{entry.email}</p>
+            <p className="mt-1 text-xs text-white/45">Ajouté le {formattedDate}</p>
+            <p className="mt-1 truncate text-xs text-white/40">
+              Ajouté par : {entry.created_by || "inconnu"}
+            </p>
+          </div>
+        </div>
+
+        {canDelete ? (
+          <button
+            type="button"
+            onClick={() => onDelete(entry)}
+            disabled={isDeleting}
+            className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Trash2 size={16} />
+            {isDeleting ? "Suppression..." : "Supprimer"}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+});
+
+export default function MailPage() {
+  const [email, setEmail] = useState(EMPTY_MESSAGE);
+  const [search, setSearch] = useState(EMPTY_MESSAGE);
+  const [entries, setEntries] = useState<MailEntry[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [message, setMessage] = useState(EMPTY_MESSAGE);
+  const [sessionEmail, setSessionEmail] = useState(EMPTY_MESSAGE);
+  const [canManageAll, setCanManageAll] = useState(false);
+  const [canViewPage, setCanViewPage] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const normalizedSessionEmail = useMemo(
+    () => normalize(sessionEmail),
+    [sessionEmail]
+  );
+  const normalizedSearch = useMemo(() => normalize(search), [search]);
+
+  const loadEntries = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("suicide_rp_mails")
+      .select("id, email, created_at, created_by")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return (data ?? []) as MailEntry[];
   }, []);
 
-  const activeWeek = useMemo(
-    () => storage.weeks.find((week) => week.id === storage.activeWeekId) ?? null,
-    [storage]
-  );
+  useEffect(() => {
+    let ignore = false;
 
-  const summary = useMemo(() => {
-    if (!activeWeek) {
-      return {
-        staffCount: 0,
-        totalReports: 0,
-        totalMinutes: 0,
-      };
+    async function initPage() {
+      try {
+        setMessage(EMPTY_MESSAGE);
+
+        const currentSessionEmail = (getSessionEmail() || EMPTY_MESSAGE).trim();
+        if (ignore) return;
+
+        setSessionEmail(currentSessionEmail);
+
+        if (!currentSessionEmail) {
+          if (!ignore) {
+            setCanViewPage(false);
+            setCanManageAll(false);
+          }
+          return;
+        }
+
+        const { data: permissions, error: permissionError } = await supabase
+          .from("user_permissions")
+          .select("permission")
+          .eq("email", currentSessionEmail);
+
+        if (permissionError) {
+          console.error("Erreur récupération permissions :", permissionError);
+          if (!ignore) {
+            setCanViewPage(false);
+            setCanManageAll(false);
+            setMessage("Impossible de vérifier les permissions.");
+          }
+          return;
+        }
+
+        const userPermissions = (permissions ?? []).map((item) => item.permission);
+
+        const hasGerantAccess = userPermissions.includes(ESPACE_SA_GERANT_PERMISSION);
+        const hasManageAll = userPermissions.includes(MAIL_ACCESS_PERMISSION);
+
+        if (ignore) return;
+
+        setCanViewPage(hasGerantAccess);
+        setCanManageAll(hasManageAll);
+
+        if (!hasGerantAccess) {
+          setEntries([]);
+          return;
+        }
+
+        const rows = await loadEntries();
+        if (ignore) return;
+        setEntries(rows);
+      } catch (error) {
+        if (ignore) return;
+        console.error("Erreur initialisation mails :", error);
+        setMessage("Impossible de charger les adresses mail.");
+      } finally {
+        if (!ignore) setIsLoaded(true);
+      }
     }
 
-    const staffCount = activeWeek.rows.length;
+    initPage();
 
-    const totalReports = activeWeek.rows.reduce((sum, row) => {
-      return (
-        sum +
-        DAY_KEYS.reduce((daySum, day) => daySum + (Number(row.reports[day]) || 0), 0)
-      );
-    }, 0);
-
-    const totalMinutes = activeWeek.rows.reduce((sum, row) => {
-      return (
-        sum +
-        DAY_KEYS.reduce((daySum, day) => daySum + parseHourToMinutes(row.hours[day]), 0)
-      );
-    }, 0);
-
-    return {
-      staffCount,
-      totalReports,
-      totalMinutes,
+    return () => {
+      ignore = true;
     };
-  }, [activeWeek]);
+  }, [loadEntries]);
+
+  const handleSubmit = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      setMessage(EMPTY_MESSAGE);
+
+      if (!canViewPage) {
+        setMessage("Tu n’as pas accès à cette catégorie.");
+        return;
+      }
+
+      const cleanEmail = normalize(email);
+
+      if (!cleanEmail) {
+        setMessage("Merci de renseigner une adresse mail.");
+        return;
+      }
+
+      if (!EMAIL_REGEX.test(cleanEmail)) {
+        setMessage("Merci d’entrer une adresse mail valide.");
+        return;
+      }
+
+      const alreadyExists = entries.some(
+        (entry) => normalize(entry.email) === cleanEmail
+      );
+
+      if (alreadyExists) {
+        setMessage("Cette adresse mail est déjà enregistrée.");
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      try {
+        const { data, error } = await supabase
+          .from("suicide_rp_mails")
+          .insert([
+            {
+              email: cleanEmail,
+              created_by: normalizedSessionEmail || null,
+            },
+          ])
+          .select("id, email, created_at, created_by")
+          .single();
+
+        if (error) throw error;
+
+        setEntries((prev) => [data as MailEntry, ...prev]);
+        setEmail(EMPTY_MESSAGE);
+        setMessage("Adresse mail enregistrée avec succès.");
+      } catch (error: any) {
+        console.error("Erreur ajout mail :", error);
+
+        const errorMessage = String(error?.message || EMPTY_MESSAGE).toLowerCase();
+        if (errorMessage.includes("duplicate") || errorMessage.includes("unique")) {
+          setMessage("Cette adresse mail est déjà enregistrée.");
+        } else {
+          setMessage("Impossible d’enregistrer cette adresse mail.");
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [canViewPage, email, entries, normalizedSessionEmail]
+  );
+
+  const handleDelete = useCallback(
+    async (entry: MailEntry) => {
+      if (!canViewPage) {
+        setMessage("Tu n’as pas accès à cette catégorie.");
+        return;
+      }
+
+      const allowed = canDeleteEntry(entry, normalizedSessionEmail, canManageAll);
+
+      if (!allowed) {
+        setMessage("Tu ne peux supprimer que les mails que tu as ajoutés.");
+        return;
+      }
+
+      setMessage(EMPTY_MESSAGE);
+      setDeletingId(entry.id);
+
+      try {
+        const { error } = await supabase
+          .from("suicide_rp_mails")
+          .delete()
+          .eq("id", entry.id);
+
+        if (error) throw error;
+
+        setEntries((prev) => prev.filter((item) => item.id !== entry.id));
+        setMessage("Adresse mail supprimée. L’accès au Google Form est retiré.");
+      } catch (error) {
+        console.error("Erreur suppression mail :", error);
+        setMessage("Impossible de supprimer cette adresse mail.");
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [canManageAll, canViewPage, normalizedSessionEmail]
+  );
+
+  const filteredEntries = useMemo(() => {
+    if (!normalizedSearch) return entries;
+
+    return entries.filter(
+      (entry) =>
+        normalize(entry.email).includes(normalizedSearch) ||
+        normalize(entry.created_by || EMPTY_MESSAGE).includes(normalizedSearch)
+    );
+  }, [entries, normalizedSearch]);
+
+  const hasAccess = useMemo(() => {
+    if (!normalizedSessionEmail) return false;
+
+    return entries.some(
+      (entry) => normalize(entry.email) === normalizedSessionEmail
+    );
+  }, [entries, normalizedSessionEmail]);
+
+  const stats = useMemo(
+    () => ({
+      total: entries.length,
+      visible: filteredEntries.length,
+      access: hasAccess ? "Actif" : "Bloqué",
+    }),
+    [entries.length, filteredEntries.length, hasAccess]
+  );
+
+  const mappedEntries = useMemo(
+    () =>
+      filteredEntries.map((entry) => ({
+        entry,
+        canDelete: canDeleteEntry(entry, normalizedSessionEmail, canManageAll),
+      })),
+    [filteredEntries, normalizedSessionEmail, canManageAll]
+  );
+
+  if (!isLoaded) {
+    return (
+      <div className="rounded-[28px] border border-white/10 bg-black/20 p-6 text-sm text-white/70">
+        Chargement...
+      </div>
+    );
+  }
+
+  if (!canViewPage) {
+    return (
+      <div className="rounded-[30px] border border-red-500/20 bg-[linear-gradient(135deg,rgba(239,68,68,0.12),rgba(0,0,0,0.18))] p-6 shadow-[0_10px_24px_rgba(127,29,29,0.16)]">
+        <div className="flex items-start gap-3">
+          <Lock className="mt-0.5 shrink-0 text-red-300" />
+          <div>
+            <h2 className="text-lg font-bold text-white">Accès refusé</h2>
+            <p className="mt-2 text-sm leading-6 text-white/80">
+              Cette page est réservée uniquement aux personnes ayant accès à la
+              catégorie <span className="font-semibold">Espace SA / Gérant staff</span>.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-[32px] border border-yellow-400/15 bg-gradient-to-r from-[#080808] via-[#090909] to-[#110f05] p-7 shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-          <div className="max-w-4xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-yellow-300">
-              <Sparkles className="h-3.5 w-3.5" />
-              Espace S-A / Gérant Staff
-            </div>
+      <section className="relative overflow-hidden rounded-[32px] border border-yellow-400/15 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.16),transparent_28%),linear-gradient(135deg,rgba(0,0,0,0.95),rgba(17,17,17,0.82),rgba(10,10,10,0.96))] p-8 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute -left-10 top-0 h-40 w-40 rounded-full bg-yellow-400/10 blur-3xl" />
+        <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-amber-300/10 blur-3xl" />
 
-            <h1 className="mt-4 text-3xl font-black tracking-tight text-white md:text-4xl">
-              Outils de gestion staff
-            </h1>
-
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-white/70 md:text-[15px]">
-              Accès rapide aux outils principaux de suivi, de contrôle et de gestion.
+        <div className="relative">
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-300/15 bg-yellow-400/10 px-4 py-1.5">
+            <span className="h-2 w-2 rounded-full bg-yellow-300 shadow-[0_0_12px_rgba(253,224,71,0.8)]" />
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-yellow-300">
+              Suicide RP
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:w-[430px]">
-            <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-              <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/75">
-                Semaine active
-              </p>
-              <p className="mt-2 text-sm font-semibold text-white">
-                {activeWeek?.label ?? "Aucune semaine"}
-              </p>
-            </div>
+          <h1 className="mt-4 text-4xl font-black tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.75)]">
+            Accès au formulaire Suicide RP
+          </h1>
 
-            <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-              <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/75">
-                Accès
-              </p>
-              <p className="mt-2 text-sm font-semibold text-white">
-                Gestion & supervision
-              </p>
-            </div>
-          </div>
+          <div className="mt-4 h-px w-44 bg-gradient-to-r from-yellow-400 via-yellow-300 to-transparent" />
+
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-white/82">
+            Cette page est visible uniquement pour les membres de la catégorie
+            Espace SA / Gérant staff.
+          </p>
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         <StatCard
-          title="Staffs suivis"
-          value={String(summary.staffCount)}
-          subtitle="Nombre de lignes staff sur la semaine active."
-        />
-        <StatCard
-          title="Reports"
-          value={String(summary.totalReports)}
-          subtitle="Total des reports saisis sur la semaine active."
+          title="Mails enregistrés"
+          value={stats.total}
+          valueClassName="text-white"
+          description="Nombre total d’adresses actuellement autorisées."
+          glowClassName="from-white/10 via-yellow-200/5 to-transparent"
         />
         <StatCard
-          title="Heures totales"
-          value={formatMinutes(summary.totalMinutes)}
-          subtitle="Temps cumulé de toute l’équipe cette semaine."
+          title="Résultats visibles"
+          value={stats.visible}
+          valueClassName="text-yellow-200"
+          description="Nombre d’adresses affichées selon la recherche."
+          glowClassName="from-yellow-400/20 via-amber-300/10 to-transparent"
         />
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-3">
-        <ToolCard
-          href="/dashboard/heures-staff"
-          icon={<CalendarRange className="h-5 w-5" />}
-          title="Heures Staff"
-          text="Gestion propre des semaines, des heures et des reports."
+        <StatCard
+          title="Accès Form"
+          value={stats.access}
+          valueClassName={hasAccess ? "text-emerald-300" : "text-red-300"}
+          description="Le formulaire est accessible seulement si ton mail est dans la liste."
+          glowClassName={
+            hasAccess
+              ? "from-emerald-400/15 via-yellow-300/10 to-transparent"
+              : "from-red-500/15 via-yellow-300/10 to-transparent"
+          }
         />
+      </div>
 
-        <ToolCard
-          href="/dashboard/remontees"
-          icon={<Bell className="h-5 w-5" />}
-          title="Remontées"
-          text="Accès direct aux remontées et au suivi des points à traiter."
-        />
-
-        <ToolCard
-          href="/dashboard/bl-staff"
-          icon={<Scale className="h-5 w-5" />}
-          title="BL Staff"
-          text="Accès rapide au suivi BL staff et aux dossiers concernés."
-        />
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
-        <div className="rounded-3xl border border-yellow-400/15 bg-[#0a0a0a] p-6">
-          <p className="text-xs uppercase tracking-[0.28em] text-yellow-300/80">
-            Organisation
+      <div className="rounded-[28px] border border-red-500/20 bg-[linear-gradient(135deg,rgba(239,68,68,0.12),rgba(0,0,0,0.18))] p-5 shadow-[0_10px_24px_rgba(127,29,29,0.16)]">
+        <div className="flex gap-3">
+          <ShieldAlert className="mt-0.5 shrink-0 text-red-300" />
+          <p className="text-sm leading-6 text-white/82">
+            L’adresse mail est obligatoire pour accéder au Google Form. Toute suppression du mail
+            enlève automatiquement l’accès.
           </p>
-          <h2 className="mt-2 text-2xl font-bold text-white">
-            Espace centralisé
-          </h2>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-white/62">
-            Regroupe uniquement les outils utiles à la gestion. Les accès déjà
-            présents dans le menu gauche ne sont pas répétés ici.
-          </p>
+        </div>
+      </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-2 text-yellow-300">
-                  <FolderKanban className="h-5 w-5" />
-                </div>
-                <h3 className="text-lg font-semibold text-white">
-                  Plus propre
-                </h3>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-white/60">
-                Moins de doublons, outils mieux rangés, lecture plus simple.
-              </p>
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <div className="relative overflow-hidden rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+          <div className="absolute right-0 top-0 h-36 w-36 rounded-full bg-yellow-400/10 blur-3xl" />
+          <div className="relative mb-5">
+            <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">Ajout</p>
+            <h2 className="mt-2 text-2xl font-black text-white">Ajouter une adresse mail</h2>
+            <p className="mt-2 text-sm leading-6 text-white/60">
+              Enregistre une adresse mail pour autoriser l’accès au formulaire Suicide RP.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="relative space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-white/90">
+                Adresse mail
+              </label>
+
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="exemple@gmail.com"
+                autoComplete="email"
+                className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45 focus:shadow-[0_0_0_4px_rgba(250,204,21,0.08)]"
+              />
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-2 text-yellow-300">
-                  <Shield className="h-5 w-5" />
-                </div>
-                <h3 className="text-lg font-semibold text-white">
-                  Réservé gestion
-                </h3>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-white/60">
-                Page pensée pour le suivi staff, les semaines et les accès utiles.
-              </p>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#fde047,#facc15,#f59e0b)] px-5 py-3 font-bold text-black shadow-[0_12px_24px_rgba(250,204,21,0.18)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              <Plus size={16} />
+              {isSubmitting ? "Enregistrement..." : "Enregistrer le mail"}
+            </button>
+          </form>
+
+          {message ? (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/80">
+              {message}
+            </div>
+          ) : null}
+
+          {hasAccess ? (
+            <a
+              href={GOOGLE_FORM_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-yellow-400/15 bg-yellow-400/10 px-5 py-3 text-sm font-semibold text-yellow-300 transition hover:bg-yellow-400/15 hover:text-yellow-200"
+            >
+              <ExternalLink size={16} />
+              Ouvrir le Google Form
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="mt-6 inline-flex cursor-not-allowed items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/35 opacity-70"
+            >
+              <ExternalLink size={16} />
+              Ouvrir le Google Form
+            </button>
+          )}
+
+          {!hasAccess ? (
+            <p className="mt-3 text-xs leading-5 text-yellow-200/75">
+              Ajoute ton adresse mail dans la liste pour débloquer l’accès au formulaire.
+            </p>
+          ) : null}
+        </div>
+
+        <div className="relative overflow-hidden rounded-[30px] border border-yellow-400/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02))] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+          <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-amber-300/10 blur-3xl" />
+
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-yellow-300/80">Liste</p>
+              <h2 className="mt-1 text-2xl font-black text-white">Mails enregistrés</h2>
+            </div>
+
+            <div className="relative w-full max-w-sm">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+              <input
+                type="text"
+                placeholder="Rechercher un mail ou un auteur..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-black/35 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-yellow-400/30 focus:bg-black/45 focus:shadow-[0_0_0_4px_rgba(250,204,21,0.08)]"
+              />
             </div>
           </div>
-        </div>
 
-        <div className="rounded-3xl border border-yellow-400/15 bg-[#0a0a0a] p-6">
-          <p className="text-xs uppercase tracking-[0.28em] text-yellow-300/80">
-            Rappel
-          </p>
-          <h2 className="mt-2 text-2xl font-bold text-white">
-            À garder propre
-          </h2>
-
-          <div className="mt-5 space-y-3">
-            {[
-              "Créer une nouvelle semaine au bon moment.",
-              "Éviter d’écraser les anciennes semaines.",
-              "Renseigner les reports et heures au fur et à mesure.",
-              "Utiliser cette page comme point central de gestion.",
-            ].map((item) => (
-              <div
-                key={item}
-                className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 p-4"
-              >
-                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-yellow-300" />
-                <p className="text-sm leading-6 text-white/70">{item}</p>
+          <div className="mt-6 space-y-4">
+            {mappedEntries.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
+                {normalizedSearch
+                  ? "Aucun résultat pour cette recherche."
+                  : "Aucun mail enregistré."}
               </div>
-            ))}
+            ) : (
+              mappedEntries.map(({ entry, canDelete }) => (
+                <MailCard
+                  key={entry.id}
+                  entry={entry}
+                  canDelete={canDelete}
+                  isDeleting={deletingId === entry.id}
+                  onDelete={handleDelete}
+                />
+              ))
+            )}
           </div>
         </div>
-      </section>
+      </div>
     </div>
   );
 }
