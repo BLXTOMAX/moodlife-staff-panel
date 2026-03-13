@@ -1,29 +1,29 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
 import {
+  AlertTriangle,
   ChevronDown,
+  Gavel,
   Search,
   ShieldCheck,
-  Gavel,
   Siren,
-  AlertTriangle,
 } from "lucide-react";
 
 type RuleSection = {
   id: string;
   title: string;
-  icon: React.ReactNode;
+  icon: (props: { className?: string }) => ReactNode;
   accent: string;
   intro: string;
   rules: string[];
 };
 
-const sections: RuleSection[] = [
+const SECTIONS: RuleSection[] = [
   {
     id: "general",
     title: "Règles Générales Staff",
-    icon: <ShieldCheck className="h-5 w-5" />,
+    icon: ShieldCheck,
     accent: "text-yellow-300",
     intro:
       "Ces règles concernent le comportement général du staff sur Discord, en ticket, en salon et dans la gestion globale du serveur.",
@@ -48,7 +48,7 @@ const sections: RuleSection[] = [
   {
     id: "ig",
     title: "Règles IG",
-    icon: <Siren className="h-5 w-5" />,
+    icon: Siren,
     accent: "text-yellow-300",
     intro:
       "Ces règles encadrent l’utilisation des permissions staff et votre comportement directement en jeu.",
@@ -82,7 +82,7 @@ const sections: RuleSection[] = [
   {
     id: "sanctions",
     title: "Sanctions & Rappels Importants",
-    icon: <Gavel className="h-5 w-5" />,
+    icon: Gavel,
     accent: "text-yellow-300",
     intro:
       "Le non-respect du règlement staff peut entraîner des sanctions lourdes selon la gravité des faits.",
@@ -95,18 +95,20 @@ const sections: RuleSection[] = [
 ];
 
 function normalize(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function escapeRegExp(text: string) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function highlightText(text: string, query: string) {
-  if (!query.trim()) return text;
+  const trimmedQuery = query.trim();
 
-  const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const regex = new RegExp(`(${safeQuery})`, "ig");
-  const parts = text.split(regex);
+  if (!trimmedQuery) return text;
+
+  const regex = new RegExp(`(${escapeRegExp(trimmedQuery)})`, "i");
+  const parts = text.split(new RegExp(`(${escapeRegExp(trimmedQuery)})`, "gi"));
 
   return parts.map((part, index) =>
     regex.test(part) ? (
@@ -122,7 +124,16 @@ function highlightText(text: string, query: string) {
   );
 }
 
-function RuleCard({
+type FilteredSection = {
+  id: string;
+  title: string;
+  icon: RuleSection["icon"];
+  accent: string;
+  intro: string;
+  filteredRules: string[];
+};
+
+const RuleCard = memo(function RuleCard({
   rule,
   index,
   query,
@@ -146,30 +157,24 @@ function RuleCard({
       </div>
     </div>
   );
-}
+});
 
-function AccordionItem({
+const AccordionItem = memo(function AccordionItem({
   section,
   isOpen,
   onToggle,
   query,
 }: {
-  section: RuleSection;
+  section: FilteredSection;
   isOpen: boolean;
   onToggle: () => void;
   query: string;
 }) {
-  const filteredRules = useMemo(() => {
-    if (!query.trim()) return section.rules;
-
-    const q = normalize(query);
-    return section.rules.filter((rule) => normalize(rule).includes(q));
-  }, [query, section.rules]);
-
-  const hasResults = filteredRules.length > 0;
+  const Icon = section.icon;
+  const hasResults = section.filteredRules.length > 0;
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-yellow-400/15 bg-[#101010]/88 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md transition duration-300 hover:border-yellow-400/30">
+    <div className="overflow-hidden rounded-3xl border border-yellow-400/15 bg-[#101010]/88 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm transition duration-300 hover:border-yellow-400/30">
       <button
         type="button"
         onClick={onToggle}
@@ -178,14 +183,16 @@ function AccordionItem({
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <div className="rounded-xl border border-yellow-400/15 bg-yellow-400/10 p-2 text-yellow-300">
-              {section.icon}
+              <Icon className="h-5 w-5" />
             </div>
 
             <div>
               <p className={`text-xs uppercase tracking-[0.24em] ${section.accent}`}>
                 Section
               </p>
-              <h2 className="mt-1 text-xl font-bold text-white">{section.title}</h2>
+              <h2 className="mt-1 text-xl font-bold text-white">
+                {section.title}
+              </h2>
             </div>
           </div>
 
@@ -196,7 +203,8 @@ function AccordionItem({
 
         <div className="flex items-center gap-3">
           <span className="hidden rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/65 md:inline-flex">
-            {filteredRules.length} règle{filteredRules.length > 1 ? "s" : ""}
+            {section.filteredRules.length} règle
+            {section.filteredRules.length > 1 ? "s" : ""}
           </span>
 
           <ChevronDown
@@ -216,7 +224,7 @@ function AccordionItem({
           <div className="border-t border-white/10 px-6 py-5">
             {hasResults ? (
               <div className="grid gap-3">
-                {filteredRules.map((rule, index) => (
+                {section.filteredRules.map((rule, index) => (
                   <RuleCard
                     key={`${section.id}-${index}-${rule}`}
                     rule={rule}
@@ -236,40 +244,59 @@ function AccordionItem({
       </div>
     </div>
   );
-}
+});
 
 export default function ReglesStaffPage() {
   const [search, setSearch] = useState("");
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
+  const normalizedSearch = useMemo(() => normalize(search.trim()), [search]);
+
   const totalRules = useMemo(
-    () => sections.reduce((acc, section) => acc + section.rules.length, 0),
+    () => SECTIONS.reduce((acc, section) => acc + section.rules.length, 0),
     []
   );
 
-  const filteredTotals = useMemo(() => {
-    if (!search.trim()) {
-      return {
-        sectionsWithResults: sections.length,
-        rulesWithResults: totalRules,
-      };
+  const filteredSections = useMemo<FilteredSection[]>(() => {
+    if (!normalizedSearch) {
+      return SECTIONS.map((section) => ({
+        id: section.id,
+        title: section.title,
+        icon: section.icon,
+        accent: section.accent,
+        intro: section.intro,
+        filteredRules: section.rules,
+      }));
     }
 
-    const q = normalize(search);
+    return SECTIONS.map((section) => ({
+      id: section.id,
+      title: section.title,
+      icon: section.icon,
+      accent: section.accent,
+      intro: section.intro,
+      filteredRules: section.rules.filter((rule) =>
+        normalize(rule).includes(normalizedSearch)
+      ),
+    }));
+  }, [normalizedSearch]);
 
-    const sectionsWithResults = sections.filter((section) =>
-      section.rules.some((rule) => normalize(rule).includes(q))
+  const filteredTotals = useMemo(() => {
+    const sectionsWithResults = filteredSections.filter(
+      (section) => section.filteredRules.length > 0
     ).length;
 
-    const rulesWithResults = sections.reduce((acc, section) => {
-      return (
-        acc +
-        section.rules.filter((rule) => normalize(rule).includes(q)).length
-      );
-    }, 0);
+    const rulesWithResults = filteredSections.reduce(
+      (acc, section) => acc + section.filteredRules.length,
+      0
+    );
 
     return { sectionsWithResults, rulesWithResults };
-  }, [search, totalRules]);
+  }, [filteredSections]);
+
+  const handleToggle = useCallback((index: number) => {
+    setOpenIndex((prev) => (prev === index ? null : index));
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -295,15 +322,15 @@ export default function ReglesStaffPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-4">
-        <div className="rounded-2xl border border-yellow-400/20 bg-[#111111]/80 p-5 shadow-[0_0_25px_rgba(255,215,0,0.08)] backdrop-blur-md">
+        <div className="rounded-2xl border border-yellow-400/20 bg-[#111111]/80 p-5 shadow-[0_0_25px_rgba(255,215,0,0.08)] backdrop-blur-sm">
           <p className="text-xs uppercase tracking-[0.24em] text-yellow-400/80">
             Sections
           </p>
-          <p className="mt-3 text-3xl font-black text-white">{sections.length}</p>
+          <p className="mt-3 text-3xl font-black text-white">{SECTIONS.length}</p>
           <p className="mt-2 text-sm text-white/60">Catégories principales</p>
         </div>
 
-        <div className="rounded-2xl border border-yellow-400/20 bg-[#111111]/80 p-5 shadow-[0_0_25px_rgba(255,215,0,0.08)] backdrop-blur-md">
+        <div className="rounded-2xl border border-yellow-400/20 bg-[#111111]/80 p-5 shadow-[0_0_25px_rgba(255,215,0,0.08)] backdrop-blur-sm">
           <p className="text-xs uppercase tracking-[0.24em] text-yellow-400/80">
             Règles
           </p>
@@ -323,7 +350,7 @@ export default function ReglesStaffPage() {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-yellow-400/15 bg-[#101010]/85 p-4 shadow-[0_10px_25px_rgba(0,0,0,0.35)] backdrop-blur-md">
+      <div className="rounded-3xl border border-yellow-400/15 bg-[#101010]/85 p-4 shadow-[0_10px_25px_rgba(0,0,0,0.35)] backdrop-blur-sm">
         <div className="relative">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
           <input
@@ -350,14 +377,12 @@ export default function ReglesStaffPage() {
       </div>
 
       <div className="space-y-4">
-        {sections.map((section, index) => (
+        {filteredSections.map((section, index) => (
           <AccordionItem
             key={section.id}
             section={section}
             isOpen={openIndex === index}
-            onToggle={() =>
-              setOpenIndex((prev) => (prev === index ? null : index))
-            }
+            onToggle={() => handleToggle(index)}
             query={search}
           />
         ))}
