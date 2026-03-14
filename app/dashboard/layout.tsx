@@ -115,15 +115,13 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-transparent text-white">
       <SitePresenceTracker />
 
-      <div className="flex min-h-screen bg-transparent">
-        <div className="shrink-0">
-          <Sidebar />
-        </div>
+      <div className="min-h-screen bg-transparent xl:flex">
+  <Sidebar />
 
-        <main className="flex-1 overflow-x-hidden bg-transparent p-4 md:p-6">
-          {children}
-        </main>
-      </div>
+  <main className="min-w-0 flex-1 w-full overflow-x-hidden bg-transparent p-4 md:p-6">
+    {children}
+  </main>
+</div>
 
       <StaffFaqBot />
     </div>
